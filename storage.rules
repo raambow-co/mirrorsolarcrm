@@ -1,0 +1,35 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper function to check if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // A helper to ensure the file is an image or PDF and under 10MB
+    function isValidDocument() {
+      return request.resource.size < 10 * 1024 * 1024
+          && request.resource.contentType.matches('application/pdf|image/jpeg|image/png|image/jpg|image/heic|image/heif|application/msword|application/vnd.openxmlformats-officedocument.wordprocessingml.document|text/plain');
+    }
+
+    // LEADS DOCUMENTS
+    match /leads/{leadId}/documents/{docId}/{fileName} {
+      
+      // Admins can read/write any lead document
+      // Other roles can only access if authenticated
+      allow read: if isAuthenticated();
+      
+      // Only allow uploads that pass the validation check
+      allow write: if isAuthenticated() && isValidDocument();
+      
+      // Allow deletion by authenticated users
+      allow delete: if isAuthenticated();
+    }
+    
+    // Default deny for anything not explicitly matched
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,244 @@
+.splash-container {
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: var(--color-white);
+  position: relative;
+  padding: 1.5rem;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.logo-section {
+  position: relative;
+  width: min(280px, 75vw);
+  height: min(280px, 75vw);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+/* --- SVG Solar Arc --- */
+.solar-arc-svg {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  transform: translate(-50%, -50%) rotate(-90deg); /* Start at top */
+  pointer-events: none;
+}
+
+.arc-path {
+  fill: none;
+  stroke: var(--color-yellow);
+  stroke-linecap: round;
+  /* 2 * PI * 48 = 301.59 */
+  stroke-dasharray: 301.6;
+  stroke-dashoffset: 301.6;
+  opacity: 0;
+}
+
+.arc-path.draw {
+  animation: svgDrawArc 0.7s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.arc-path.complete {
+  /* Keeps the draw state as starting point */
+  animation: svgCompleteArc 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes svgDrawArc {
+  0% { stroke-dashoffset: 301.6; stroke-width: 0.5; opacity: 0; }
+  10% { opacity: 1; }
+  100% { stroke-dashoffset: 226.2; stroke-width: 0.8; opacity: 1; } /* 1/4 circle */
+}
+
+@keyframes svgCompleteArc {
+  0% { stroke-dashoffset: 226.2; stroke-width: 0.8; opacity: 1; transform: scale(1); transform-origin: center; }
+  100% { stroke-dashoffset: 0; stroke-width: 0.5; opacity: 0.12; transform: scale(1.05); transform-origin: center; }
+}
+
+
+/* --- Energy Line SVG --- */
+.energy-svg {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.energy-path {
+  fill: none;
+  stroke: url(#energyGrad);
+  stroke-width: 0.8;
+  stroke-linecap: round;
+  /* Path length is around 100, make dash smaller than path */
+  stroke-dasharray: 25 150;
+  stroke-dashoffset: 150;
+  opacity: 0;
+}
+
+.energy-path.move {
+  animation: energyTravel 0.7s cubic-bezier(0.33, 1, 0.68, 1) forwards;
+}
+
+@keyframes energyTravel {
+  0% { stroke-dashoffset: 150; opacity: 0; }
+  10% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { stroke-dashoffset: 30; opacity: 0; }
+}
+
+
+/* --- Official Logo --- */
+.splash-logo {
+  position: relative;
+  z-index: 10;
+  max-width: 100%;
+  height: auto;
+  max-height: 200px;
+  object-fit: contain;
+  opacity: 0;
+  /* Start smaller and lower */
+  transform: scale(0.96) translateY(12px);
+  width: min(70vw, 300px);
+}
+
+.splash-logo.reveal {
+  animation: logoReveal 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes logoReveal {
+  0% { opacity: 0; transform: scale(0.96) translateY(12px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+
+/* --- Brand Text --- */
+.brand-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 10;
+}
+
+.brand-title {
+  color: var(--color-navy);
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  margin: 0 0 6px 0;
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.brand-tagline {
+  color: var(--color-navy);
+  font-size: 0.95rem;
+  font-weight: 300;
+  letter-spacing: 0.05em;
+  margin: 0;
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.brand-title.reveal {
+  animation: textReveal 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+.brand-tagline.reveal-delayed {
+  animation: textReveal 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  animation-delay: 0.15s;
+}
+
+@keyframes textReveal {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+
+/* --- Micro Animation Line --- */
+.micro-line-container {
+  width: 48px;
+  height: 1px;
+  background-color: transparent;
+  margin-top: 20px;
+  margin-bottom: 24px;
+  position: relative;
+  overflow: hidden;
+  opacity: 0;
+}
+
+.micro-line-container.reveal {
+  opacity: 1;
+  background-color: rgba(11, 31, 58, 0.06); /* Extremely subtle track */
+}
+
+.micro-line-traveler {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background-color: var(--color-yellow);
+}
+
+.micro-line-container.reveal .micro-line-traveler {
+  animation: microLineTravel 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes microLineTravel {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+
+/* --- Minimal Loading Dots --- */
+.loader-container {
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.6s ease-in;
+}
+
+.loader-container.visible {
+  opacity: 1;
+}
+
+.dot-loader {
+  display: flex;
+  gap: 8px;
+}
+
+.dot {
+  width: 5px;
+  height: 5px;
+  background-color: var(--color-yellow);
+  border-radius: 50%;
+  animation: delicatePulse 1.4s infinite ease-in-out both;
+}
+
+.dot:nth-child(1) { animation-delay: -0.32s; }
+.dot:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes delicatePulse {
+  0%, 100% { opacity: 0.2; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+.splash-container.fade-out {
+  opacity: 0;
+}
+

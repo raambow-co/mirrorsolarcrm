@@ -1,0 +1,206 @@
+/* Global Toasts */
+.global-toast-container {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 9999;
+  width: calc(100vw - 32px);
+  max-width: 440px;
+  pointer-events: none;
+}
+
+.global-toast {
+  background: white;
+  color: var(--color-navy);
+  padding: 14px 18px;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  animation: slideDownBounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  width: 100%;
+  box-sizing: border-box;
+  border-left: 4px solid var(--color-navy);
+  pointer-events: auto;
+}
+
+.toast-exit {
+  animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.toast-success { border-left-color: #10B981; }
+.toast-error { border-left-color: #EF4444; }
+.toast-info { border-left-color: #3B82F6; }
+
+.toast-icon {
+  width: 22px;
+  height: 22px;
+  animation: popIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation-delay: 0.1s;
+  transform: scale(0);
+}
+.toast-success .toast-icon { color: #10B981; }
+.toast-error .toast-icon { color: #EF4444; }
+.toast-info .toast-icon { color: #3B82F6; }
+
+.toast-message {
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+}
+
+@keyframes slideDownBounce {
+  0% {
+    transform: translateY(-100%) scale(0.9);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes slideUpFade {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100%) scale(0.9);
+    opacity: 0;
+  }
+}
+
+@keyframes popIn {
+  0% { transform: scale(0); }
+  100% { transform: scale(1); }
+}
+
+/* Global Modals */
+.global-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(10, 25, 47, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+.global-modal-content {
+  background: white;
+  border-radius: 12px;
+  padding: 32px;
+  width: 90%;
+  max-width: 450px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  animation: slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.global-modal-title {
+  color: var(--color-navy);
+  font-size: 1.5rem;
+  margin-bottom: 12px;
+  margin-top: 0;
+}
+
+.global-modal-message {
+  color: var(--color-navy-light);
+  font-size: 1rem;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.global-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.global-btn-secondary {
+  padding: 10px 20px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  color: var(--color-navy);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.global-btn-secondary:hover {
+  background: #f8fafc;
+}
+
+.global-btn-primary {
+  padding: 10px 20px;
+  background: var(--color-yellow);
+  border: none;
+  border-radius: 6px;
+  color: var(--color-navy);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.global-btn-primary:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+.global-btn-primary.btn-danger {
+  background: #EF4444;
+  color: white;
+}
+
+.global-btn-primary.btn-danger:hover {
+  background: #DC2626;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 480px) {
+  .global-modal-content {
+    padding: 1.5rem 1.25rem;
+    width: 95%;
+  }
+
+  .global-modal-actions {
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+
+  .global-btn-secondary, .global-btn-primary {
+    width: 100%;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}

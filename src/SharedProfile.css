@@ -1,0 +1,256 @@
+/* Dealer Profile Premium UI */
+.dealer-profile-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 1.5rem;
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+.dealer-profile-header {
+  margin-bottom: 2rem;
+}
+
+.dealer-profile-header h1 {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--color-navy);
+  margin-bottom: 0.25rem;
+}
+
+.dealer-profile-header p {
+  color: #64748b;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.profile-layout-grid {
+  display: grid;
+  grid-template-columns: 350px 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+/* Left Column: Avatar Card */
+.profile-card-left {
+  background: var(--color-white);
+  border-radius: 16px;
+  padding: 3rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 4px 20px rgba(11, 31, 58, 0.04);
+  border: 1px solid rgba(11, 31, 58, 0.05);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.profile-card-left:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(11, 31, 58, 0.08);
+}
+
+.profile-avatar-wrapper {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: var(--color-white);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  border: 4px solid #f8fafc;
+}
+
+.profile-avatar-text {
+  font-size: 3rem;
+  font-weight: 800;
+  color: var(--color-navy);
+}
+
+.profile-name-title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--color-navy);
+  margin: 0 0 0.5rem 0;
+  text-align: center;
+}
+
+.profile-role-pill {
+  background: #f1f5f9;
+  color: var(--color-navy);
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Right Column: Details Card */
+.profile-card-right {
+  background: var(--color-white);
+  border-radius: 16px;
+  padding: 2.5rem;
+  box-shadow: 0 4px 20px rgba(11, 31, 58, 0.04);
+  border: 1px solid rgba(11, 31, 58, 0.05);
+}
+
+.profile-section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-navy);
+  margin: 0 0 1.5rem 0;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.profile-section-icon {
+  color: var(--color-navy);
+}
+
+/* Form Styles */
+.premium-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.premium-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.premium-input-group label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-navy);
+}
+
+.premium-input-group input,
+.premium-input-group textarea {
+  padding: 0.85rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: var(--color-navy);
+  font-size: 0.95rem;
+  font-family: inherit;
+  transition: all 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.premium-input-group input:focus,
+.premium-input-group textarea:focus {
+  outline: none;
+  border-color: var(--color-navy);
+  box-shadow: 0 0 0 3px rgba(11, 31, 58, 0.1);
+}
+
+.premium-input-group input:disabled {
+  background: #f8fafc;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+/* Performance Metrics */
+.performance-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.25rem;
+  margin-top: 2rem;
+}
+
+.perf-metric-card {
+  background: #f8fafc;
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 1px solid rgba(11, 31, 58, 0.05);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease;
+}
+
+.perf-metric-card:hover {
+  transform: translateY(-2px);
+  background: #f1f5f9;
+}
+
+.perf-metric-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 0.5rem;
+}
+
+.perf-metric-value {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--color-navy);
+}
+
+/* Buttons */
+.premium-btn-primary {
+  background: var(--color-navy);
+  color: var(--color-white);
+  padding: 0.8rem 1.5rem;
+  border-radius: 8px;
+  border: none;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  align-self: flex-start;
+  margin-top: 0.5rem;
+}
+
+.premium-btn-primary:hover {
+  background: #1a365d;
+  box-shadow: 0 4px 12px rgba(11, 31, 58, 0.2);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 900px) {
+  .profile-layout-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  .performance-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  .profile-card-left {
+    padding: 2rem 1.5rem;
+  }
+  .profile-card-right {
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .dealer-profile-header h1 {
+    font-size: 1.5rem;
+  }
+  .profile-card-left {
+    padding: 1.5rem 1rem;
+  }
+  .profile-card-right {
+    padding: 1.25rem 1rem;
+  }
+  .premium-btn-primary {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
+    align-self: stretch;
+  }
+}

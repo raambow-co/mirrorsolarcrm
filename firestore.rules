@@ -1,0 +1,86 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    
+    function getUserName() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.name;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && getUserRole() == 'Admin';
+    }
+
+    // USERS COLLECTION
+    match /users/{userId} {
+      // Anyone authenticated can read user data (needed for directories and assignment lists)
+      allow read: if isAuthenticated();
+      
+      // Users can update their own status/profile, BUT cannot change their own role or permissions
+      allow update: if isAuthenticated() && 
+                    (isAdmin() || 
+                    (request.auth.uid == userId && 
+                     !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'permissions'])));
+                     
+      // Only admins can create or delete users
+      allow create, delete: if isAdmin();
+    }
+
+    // LEADS COLLECTION
+    match /leads/{leadId} {
+      // Admins can read all.
+      // Dealers can only read leads where they are the 'dealer'.
+      // Employees can only read leads assigned to them.
+      allow read: if isAdmin() ||
+                  (isAuthenticated() && getUserRole() == 'Dealer' && resource.data.dealer == getUserName()) ||
+                  (isAuthenticated() && getUserRole() == 'Employee' && resource.data.assignedEmployee == getUserName());
+
+      // Only Admins and Dealers can create leads
+      allow create: if isAdmin() || (isAuthenticated() && getUserRole() == 'Dealer' && request.resource.data.dealer == getUserName());
+
+      // Updates are restricted similarly
+      allow update: if isAdmin() ||
+                    (isAuthenticated() && getUserRole() == 'Dealer' && resource.data.dealer == getUserName()) ||
+                    (isAuthenticated() && getUserRole() == 'Employee' && resource.data.assignedEmployee == getUserName());
+
+      // Only admins can delete leads
+      allow delete: if isAdmin();
+    }
+
+    // ACTIVITIES COLLECTION
+    match /activities/{activityId} {
+      // Admins read all. Others read activities tied to them.
+      allow read: if isAdmin() ||
+                  (isAuthenticated() && resource.data.dealer == getUserName()) ||
+                  (isAuthenticated() && resource.data.user == getUserName());
+
+      // Anyone authenticated can create an activity (append-only log)
+      allow create: if isAuthenticated();
+      
+      // No one can update or delete activities to preserve the audit trail
+      allow update, delete: if false;
+    }
+
+    // TASKS COLLECTION
+    match /tasks/{taskId} {
+      // Read access if you are assigned or created it, or if Admin
+      allow read: if isAdmin() || 
+                  (isAuthenticated() && (resource.data.assignedToUserId == request.auth.uid || resource.data.createdByUserId == request.auth.uid));
+
+      // Anyone can create tasks
+      allow create: if isAuthenticated();
+      
+      // Can only update/delete if involved or Admin
+      allow update, delete: if isAdmin() || 
+                            (isAuthenticated() && (resource.data.assignedToUserId == request.auth.uid || resource.data.createdByUserId == request.auth.uid));
+    }
+  }
+}

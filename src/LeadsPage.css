@@ -794,7 +794,7 @@
 
 @media (max-width: 768px) {
   .leads-header {
-    padding: 1rem;
+    padding: 1rem 0.85rem;
     flex-direction: column;
     align-items: stretch;
     gap: 0.75rem;
@@ -810,16 +810,18 @@
   }
 
   .leads-summary-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.75rem;
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.65rem !important;
   }
 
   .lead-summary-card {
-    padding: 1rem;
+    padding: 0.85rem 0.75rem !important;
+    border-radius: 14px !important;
   }
 
   .lead-summary-value {
-    font-size: 1.6rem;
+    font-size: 1.4rem !important;
   }
 
   .leads-pipeline {
@@ -827,20 +829,27 @@
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     padding-bottom: 0.5rem;
-    gap: 0.75rem;
+    gap: 0.6rem;
     scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+
+  .leads-pipeline::-webkit-scrollbar {
+    display: none;
   }
 
   .pipeline-stage-btn {
     min-width: 110px;
     flex: 0 0 110px;
     scroll-snap-align: start;
-    padding: 0.75rem;
+    padding: 0.75rem 0.6rem;
+    border-radius: 12px;
   }
 
   .leads-filters {
-    padding: 1rem;
-    gap: 0.75rem;
+    padding: 0.85rem;
+    gap: 0.65rem;
+    border-radius: 14px;
   }
 
   .leads-filters-row {
@@ -852,31 +861,48 @@
   .search-box {
     width: 100% !important;
     min-width: 0 !important;
+    border-radius: 10px;
   }
 
   .filter-select, .search-box input {
     width: 100% !important;
     box-sizing: border-box;
+    min-height: 44px;
+    font-size: 16px !important;
   }
 
   .lead-detail-drawer {
-    width: 100% !important;
+    width: 100vw !important;
     max-width: 100vw !important;
-    border-radius: 0 !important;
+    height: 90vh !important;
+    height: 90dvh !important;
+    border-radius: 24px 24px 0 0 !important;
     position: fixed !important;
-    top: 0 !important;
+    top: auto !important;
     right: 0 !important;
     bottom: 0 !important;
     left: 0 !important;
-    z-index: 1250 !important;
+    z-index: 1300 !important;
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.35) !important;
+    animation: sheetSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+  }
+
+  .lead-detail-drawer::before {
+    content: '';
+    display: block;
+    width: 44px;
+    height: 5px;
+    background: #cbd5e1;
+    border-radius: 3px;
+    margin: 0 auto 0.75rem auto;
   }
 
   .drawer-header {
-    padding: 1rem;
+    padding: 0.85rem 1rem;
   }
 
   .drawer-actions {
-    padding: 0.75rem 1rem;
+    padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom, 16px)) 1rem;
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
@@ -889,13 +915,16 @@
 
   .drawer-actions button {
     flex: 1 1 calc(50% - 0.5rem);
-    min-height: 44px;
-    font-size: 0.85rem;
+    min-height: 46px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    border-radius: 10px;
     justify-content: center;
   }
 
   .drawer-body {
     padding: 1rem;
+    gap: 1.25rem;
   }
 
   .detail-grid {
@@ -915,12 +944,13 @@
   }
 
   .document-card {
-    padding: 0.85rem !important;
+    padding: 1rem !important;
+    border-radius: 12px !important;
   }
 
   .document-card-actions button {
-    min-height: 38px;
-    font-size: 0.8rem;
+    min-height: 40px;
+    font-size: 0.82rem;
   }
 
   .upload-modal-body {
@@ -936,8 +966,8 @@
 
 @media (max-width: 480px) {
   .leads-summary-grid {
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.5rem !important;
   }
 
   .drawer-actions button {
@@ -954,7 +984,8 @@
   .leads-header-actions button {
     width: 100%;
     justify-content: center;
-    min-height: 44px;
+    min-height: 46px;
+    border-radius: 12px;
   }
 }
 

@@ -821,11 +821,14 @@
 
 @media (max-width: 480px) {
   .dealers-summary-grid {
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.5rem !important;
   }
 
   .pipeline-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.5rem !important;
   }
 }
+

@@ -1219,6 +1219,9 @@
 
 @media (max-width: 480px) {
   .payments-metrics-grid {
-    grid-template-columns: 1fr;
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.5rem !important;
   }
 }
+

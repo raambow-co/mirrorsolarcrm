@@ -1601,17 +1601,26 @@
 
 @media (max-width: 480px) {
   .overview-grid {
-    grid-template-columns: 1fr;
-    gap: 0.6rem;
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.5rem !important;
+  }
+
+  .overview-card {
+    padding: 0.75rem 0.65rem !important;
+  }
+
+  .overview-card .card-value {
+    font-size: 1.35rem !important;
   }
 
   .dashboard-content {
-    padding: 0.5rem 0.35rem;
+    padding: 0.65rem 0.5rem;
   }
 
   .modal-content {
     padding: 1.25rem 1rem !important;
-    border-radius: 12px !important;
+    border-radius: 16px !important;
   }
 
   .modal-actions {
@@ -1620,5 +1629,7 @@
 
   .modal-btn-cancel, .modal-btn-confirm {
     width: 100%;
+    min-height: 44px;
   }
 }
+

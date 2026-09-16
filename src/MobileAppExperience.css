@@ -2,9 +2,23 @@
    SOLAR CRM - SEXY MOBILE EXPERIENCE & PWA OVERHAUL STYLES
    ========================================================================== */
 
+/* Prevent unwanted horizontal overflow globally */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Tap highlight prevention */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
 @media (max-width: 900px) {
   /* Global App Shell Layout */
-  .admin-layout {
+  .admin-layout,
+  .dealer-app,
+  .employee-app {
     display: flex;
     flex-direction: column;
     width: 100vw;
@@ -12,23 +26,28 @@
     min-height: 100dvh;
     background: #f8fafc;
     overflow-x: hidden;
+    position: relative;
   }
 
-  .admin-main {
+  .admin-main,
+  .dealer-main,
+  .employee-main {
     flex: 1;
     width: 100% !important;
     max-width: 100vw !important;
-    padding-bottom: 84px !important; /* Space for floating bottom nav */
+    padding-bottom: calc(84px + env(safe-area-inset-bottom, 16px)) !important; /* Space for floating bottom nav */
     overflow-x: hidden !important;
     box-sizing: border-box;
   }
 
   /* Glassmorphic Mobile Header */
-  .admin-header {
+  .admin-header,
+  .dlr-header,
+  .emp-header {
     position: sticky;
     top: 0;
     z-index: 900;
-    background: rgba(255, 255, 255, 0.92) !important;
+    background: rgba(255, 255, 255, 0.95) !important;
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
     border-bottom: 1px solid rgba(226, 232, 240, 0.8) !important;
@@ -40,10 +59,16 @@
     box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04);
   }
 
-  .header-left {
+  .header-left,
+  .dlr-header-left,
+  .emp-header-left {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.6rem;
+  }
+
+  .breadcrumb {
+    font-size: 0.82rem !important;
   }
 
   .mobile-menu-btn {
@@ -89,14 +114,16 @@
      DASHBOARD ON MOBILE
      ========================================================================== */
   .dashboard-content,
-  .dealer-dashboard {
+  .dealer-dashboard,
+  .employee-dashboard {
     padding: 0.85rem 0.85rem 2rem 0.85rem !important;
     gap: 1.1rem !important;
   }
 
   /* Welcome Banner Card */
   .welcome-section,
-  .dlr-welcome {
+  .dlr-welcome,
+  .emp-welcome {
     background: linear-gradient(135deg, #0b1f3a 0%, #1e3a8a 60%, #0f2744 100%) !important;
     border-radius: 18px !important;
     padding: 1.25rem !important;
@@ -108,7 +135,8 @@
   }
 
   .welcome-section::after,
-  .dlr-welcome::after {
+  .dlr-welcome::after,
+  .emp-welcome::after {
     content: '';
     position: absolute;
     top: -30px;
@@ -121,7 +149,8 @@
   }
 
   .welcome-section h1,
-  .dlr-welcome h1 {
+  .dlr-welcome h1,
+  .emp-welcome h1 {
     font-size: 1.35rem !important;
     font-weight: 800 !important;
     color: #ffffff !important;
@@ -130,7 +159,8 @@
   }
 
   .welcome-section p,
-  .dlr-welcome p {
+  .dlr-welcome p,
+  .emp-welcome p {
     color: #cbd5e1 !important;
     font-size: 0.85rem !important;
     margin: 0 !important;
@@ -138,7 +168,15 @@
 
   /* Sexy 2x2 Overview KPI Grid */
   .overview-grid,
-  .dlr-grid-4 {
+  .dlr-grid-4,
+  .emp-grid-4,
+  .leads-summary-grid,
+  .stock-summary-grid,
+  .payments-metrics-grid,
+  .reports-summary-grid,
+  .dealers-summary-grid,
+  .employees-summary-grid,
+  .access-summary-grid {
     display: grid !important;
     grid-template-columns: repeat(2, 1fr) !important;
     gap: 0.75rem !important;
@@ -146,12 +184,17 @@
 
   .overview-card,
   .dlr-summary-card,
+  .emp-summary-card,
   .lead-summary-card,
   .stock-summary-card,
-  .payments-metric-card {
+  .payments-metric-card,
+  .reports-summary-card,
+  .dealers-summary-card,
+  .employees-summary-card,
+  .access-summary-card {
     background: #ffffff !important;
     border-radius: 16px !important;
-    padding: 1rem 0.9rem !important;
+    padding: 0.95rem 0.85rem !important;
     border: 1px solid #e2e8f0 !important;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03) !important;
     display: flex !important;
@@ -164,28 +207,38 @@
 
   .overview-card:active,
   .dlr-summary-card:active,
+  .emp-summary-card:active,
   .lead-summary-card:active,
-  .stock-summary-card:active {
+  .stock-summary-card:active,
+  .payments-metric-card:active {
     transform: scale(0.97) !important;
   }
 
   .overview-card .card-value,
   .dlr-summary-value,
+  .emp-summary-value,
   .lead-summary-value,
   .stock-summary-card .card-value,
-  .metric-value {
-    font-size: 1.5rem !important;
+  .metric-value,
+  .dealers-summary-card .card-value,
+  .employees-summary-card .card-value {
+    font-size: 1.45rem !important;
     font-weight: 800 !important;
     color: #0f172a !important;
     letter-spacing: -0.02em;
-    margin: 0.25rem 0 !important;
+    margin: 0.2rem 0 !important;
   }
 
   .overview-card .card-title,
   .dlr-summary-title,
+  .emp-summary-title,
   .lead-summary-label,
-  .stock-summary-card .card-label {
-    font-size: 0.75rem !important;
+  .lead-summary-title,
+  .stock-summary-card .card-label,
+  .metric-label,
+  .dealers-summary-card .card-title,
+  .employees-summary-card .card-title {
+    font-size: 0.72rem !important;
     font-weight: 700 !important;
     color: #64748b !important;
     text-transform: uppercase !important;
@@ -195,7 +248,10 @@
   /* Pipeline Snap Scrolling on Mobile */
   .pipeline-container,
   .dlr-pipeline-container,
-  .leads-pipeline {
+  .leads-pipeline,
+  .pipeline-tabs,
+  .stock-tabs,
+  .payments-tab-nav {
     display: flex !important;
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch !important;
@@ -207,20 +263,23 @@
 
   .pipeline-container::-webkit-scrollbar,
   .dlr-pipeline-container::-webkit-scrollbar,
-  .leads-pipeline::-webkit-scrollbar {
+  .leads-pipeline::-webkit-scrollbar,
+  .pipeline-tabs::-webkit-scrollbar,
+  .stock-tabs::-webkit-scrollbar,
+  .payments-tab-nav::-webkit-scrollbar {
     display: none !important;
   }
 
   .pipeline-stage-card,
   .dlr-pipeline-stage,
   .pipeline-stage-btn {
-    flex: 0 0 120px !important;
-    min-width: 120px !important;
+    flex: 0 0 115px !important;
+    min-width: 115px !important;
     scroll-snap-align: start !important;
     background: #ffffff !important;
     border: 1px solid #e2e8f0 !important;
     border-radius: 14px !important;
-    padding: 0.75rem 0.65rem !important;
+    padding: 0.75rem 0.6rem !important;
     text-align: center !important;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03) !important;
     transition: all 0.2s !important;
@@ -234,9 +293,15 @@
     box-shadow: 0 6px 16px rgba(11, 31, 58, 0.25) !important;
   }
 
-  .pipeline-stage-btn.active .stage-count,
-  .dlr-pipeline-stage.active .stage-count {
+  .pipeline-stage-btn.active .pipeline-stage-count,
+  .dlr-pipeline-stage.active .stage-count,
+  .pipeline-stage-btn.active .stage-count {
     color: #f4c430 !important;
+  }
+
+  .pipeline-stage-btn.active .pipeline-stage-name,
+  .dlr-pipeline-stage.active .stage-name {
+    color: #cbd5e1 !important;
   }
 
   /* ==========================================================================
@@ -244,13 +309,14 @@
      ========================================================================== */
   .modal-backdrop,
   .modal-overlay,
-  .detail-panel-overlay {
+  .detail-panel-overlay,
+  .lead-detail-overlay {
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
     right: 0 !important;
     bottom: 0 !important;
-    background: rgba(11, 31, 58, 0.7) !important;
+    background: rgba(11, 31, 58, 0.72) !important;
     backdrop-filter: blur(8px) !important;
     -webkit-backdrop-filter: blur(8px) !important;
     display: flex !important;
@@ -270,14 +336,18 @@
   .modal-content,
   .stock-modal,
   .detail-panel,
-  .leads-drawer {
+  .leads-drawer,
+  .lead-detail-drawer,
+  .dealer-modal,
+  .employee-modal,
+  .perm-modal {
     width: 100vw !important;
     max-width: 100vw !important;
-    max-height: 88vh !important;
-    max-height: 88dvh !important;
+    max-height: 90vh !important;
+    max-height: 90dvh !important;
     background: #ffffff !important;
     border-radius: 24px 24px 0 0 !important;
-    padding: 1.25rem 1.25rem calc(1.25rem + env(safe-area-inset-bottom, 12px)) 1.25rem !important;
+    padding: 1.25rem 1.15rem calc(1.25rem + env(safe-area-inset-bottom, 16px)) 1.15rem !important;
     box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.35) !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
@@ -285,6 +355,11 @@
     border: none !important;
     border-top: 1px solid rgba(255, 255, 255, 0.8) !important;
     margin: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    top: auto !important;
+    position: relative !important;
   }
 
   @keyframes sheetSlideUp {
@@ -297,7 +372,11 @@
   .modal-content::before,
   .stock-modal::before,
   .detail-panel::before,
-  .leads-drawer::before {
+  .leads-drawer::before,
+  .lead-detail-drawer::before,
+  .dealer-modal::before,
+  .employee-modal::before,
+  .perm-modal::before {
     content: '';
     display: block;
     width: 44px;
@@ -312,8 +391,10 @@
   .btn-secondary,
   .btn-danger,
   .btn-outline,
+  .btn-cool-primary,
   .modal-actions button,
-  .detail-actions button {
+  .detail-actions button,
+  .drawer-actions button {
     min-height: 46px !important;
     border-radius: 12px !important;
     font-size: 0.95rem !important;
@@ -327,7 +408,8 @@
 
   .btn-primary:active,
   .btn-secondary:active,
-  .btn-outline:active {
+  .btn-outline:active,
+  .btn-cool-primary:active {
     transform: scale(0.97) !important;
   }
 
@@ -335,14 +417,17 @@
   .form-group input,
   .form-group select,
   .form-group textarea,
-  .form-control {
+  .form-control,
+  .search-box input,
+  .filter-select {
     min-height: 46px !important;
-    font-size: 16px !important; /* Prevent iOS zoom */
+    font-size: 16px !important; /* Prevent iOS auto-zoom */
     border-radius: 10px !important;
     border: 1.5px solid #cbd5e1 !important;
     padding: 0.65rem 0.85rem !important;
     background: #ffffff !important;
     color: #0f172a !important;
+    box-sizing: border-box;
   }
 
   .form-group input:focus,
@@ -355,7 +440,8 @@
   /* Table Cards & Horizontal Scroll Polish */
   .stock-table-wrapper,
   .table-responsive,
-  .leads-table-container {
+  .leads-table-container,
+  .reports-table-container {
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch !important;
     border-radius: 14px !important;
@@ -363,5 +449,128 @@
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02) !important;
     background: #ffffff !important;
     margin-bottom: 1rem !important;
+  }
+
+  /* Lead Details Drawer Tabs */
+  .drawer-tabs,
+  .detail-tabs {
+    display: flex !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    gap: 0.5rem !important;
+    padding: 0.5rem 0 !important;
+    scrollbar-width: none !important;
+  }
+
+  .drawer-tabs::-webkit-scrollbar,
+  .detail-tabs::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .drawer-tab-btn,
+  .detail-tab-btn {
+    padding: 0.6rem 1rem !important;
+    border-radius: 20px !important;
+    font-size: 0.85rem !important;
+    font-weight: 700 !important;
+    white-space: nowrap !important;
+    min-height: 38px !important;
+  }
+
+  /* Document upload section cards */
+  .document-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+
+  .document-card {
+    padding: 1rem !important;
+    border-radius: 12px !important;
+  }
+
+  /* Chart containers ensure responsiveness */
+  .chart-container,
+  .recharts-responsive-container {
+    min-height: 260px !important;
+    width: 100% !important;
+  }
+
+  /* Sidebar Mobile Drawer */
+  .admin-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 280px !important;
+    max-width: 85vw !important;
+    z-index: 1200 !important;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.25) !important;
+  }
+
+  .admin-sidebar.mobile-open,
+  .sidebar-open .admin-sidebar {
+    transform: translateX(0) !important;
+  }
+
+  .mobile-overlay {
+    position: fixed !important;
+    inset: 0 !important;
+    background: rgba(11, 31, 58, 0.65) !important;
+    backdrop-filter: blur(4px) !important;
+    z-index: 1150 !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Extra compact optimizations for phones (360px - 430px) */
+  .overview-grid,
+  .dlr-grid-4,
+  .emp-grid-4,
+  .leads-summary-grid,
+  .stock-summary-grid,
+  .payments-metrics-grid,
+  .reports-summary-grid,
+  .dealers-summary-grid,
+  .employees-summary-grid,
+  .access-summary-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.5rem !important;
+  }
+
+  .overview-card,
+  .dlr-summary-card,
+  .emp-summary-card,
+  .lead-summary-card,
+  .stock-summary-card,
+  .payments-metric-card {
+    padding: 0.75rem 0.7rem !important;
+  }
+
+  .overview-card .card-value,
+  .dlr-summary-value,
+  .emp-summary-value,
+  .lead-summary-value,
+  .metric-value {
+    font-size: 1.3rem !important;
+  }
+
+  .leads-header,
+  .payments-hero-header,
+  .reports-header,
+  .dealers-header,
+  .employees-header,
+  .access-header {
+    padding: 1rem 0.75rem !important;
+  }
+
+  .leads-main,
+  .payments-main,
+  .reports-page-container,
+  .dealers-page,
+  .employees-page,
+  .access-page {
+    padding: 0.75rem 0.5rem !important;
   }
 }

@@ -519,10 +519,10 @@
 /* DASHBOARD CONTENT */
 .dashboard-content {
   flex: 1;
-  padding: 2rem;
+  padding: 1.5rem;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1.25rem;
   position: relative;
 }
 
@@ -540,26 +540,24 @@
   z-index: 0;
 }
 
-/* Reveal utility */
+/* Reveal utility - Always visible with optional smooth fade */
 .welcome-section, .overview-grid, .dashboard-panel {
-  opacity: 0;
-  transform: translateY(15px);
-}
-.reveal {
-  animation: slideFadeUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-}
-@keyframes slideFadeUp {
-  to { opacity: 1; transform: translateY(0); }
+  opacity: 1;
+  transform: none;
+  transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 .welcome-section {
   position: relative;
   z-index: 10;
+  margin-top: 0.25rem;
+  margin-bottom: 0.5rem;
 }
 .welcome-section h1 {
   font-size: 1.8rem;
   color: var(--color-navy);
-  margin: 0 0 0.25rem 0;
+  margin: 0 0 0.35rem 0;
+  line-height: 1.25;
 }
 .welcome-accent {
   width: 40px;
@@ -571,6 +569,7 @@
 .welcome-section p {
   color: #64748b;
   margin: 0;
+  line-height: 1.4;
 }
 
 /* Overview Cards */

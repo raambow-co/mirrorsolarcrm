@@ -13,6 +13,7 @@ import StockPage from '../StockPage';
 import AdminReportsPage from '../AdminReportsPage';
 import TasksPage from '../TasksPage';
 import CalendarPage from '../CalendarPage';
+import MobileBottomNav from '../components/MobileBottomNav';
 
 interface EmployeeAppProps {
   onSignOut: () => void;
@@ -139,6 +140,14 @@ export default function EmployeeApp({ onSignOut }: EmployeeAppProps) {
 
         {renderPage()}
       </main>
+
+      {/* Floating Glassmorphic Mobile Bottom Navigation */}
+      <MobileBottomNav 
+        role="Employee"
+        activeTab={currentPath}
+        onSelectTab={handleNavigate}
+        onOpenMenu={toggleMobileMenu}
+      />
     </div>
   );
 }

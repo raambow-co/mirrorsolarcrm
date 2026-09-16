@@ -25,6 +25,7 @@ import ProfilePage from './ProfilePage';
 import TasksPage from './TasksPage';
 import CalendarPage from './CalendarPage';
 import PaymentsPage from './PaymentsPage';
+import MobileBottomNav from './components/MobileBottomNav';
 
 // --- Custom Hooks ---
 function useCountUp(end: number, duration: number = 1200) {
@@ -67,7 +68,8 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
   // Lead State
   const { leads, employees, dealers, currentUser, activities, tasks, updateLeadStage, updateLead, addActivity } = useCRM();
   const { showToast, showConfirmModal } = useUI();
-  const { deductDealerStockForLeadMaterial } = useStock();
+  const { deductDealerStockForLeadMaterial, stockDispatches } = useStock();
+  const pendingDispatchesCount = useMemo(() => stockDispatches?.filter(d => d.status === 'Pending Dealer Confirmation').length || 0, [stockDispatches]);
   const [selectedStage, setSelectedStage] = useState<Stage>('Installation');
   const [selectedLead, setSelectedLead] = useState<MockLead | null>(null);
 
@@ -909,6 +911,15 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
         </div>
       )}
 
+      {/* Floating Glassmorphic Mobile Bottom Navigation */}
+      <MobileBottomNav 
+        role="Admin"
+        activeTab={activeTab}
+        onSelectTab={handleNavClick}
+        onOpenMenu={toggleMobileMenu}
+        stockBadge={pendingDispatchesCount}
+        leadsBadge={pendingInstallationLeads.length}
+      />
     </div>
   );
 }

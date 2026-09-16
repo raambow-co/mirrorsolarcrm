@@ -14,6 +14,8 @@ import AdminReportsPage from '../AdminReportsPage';
 import TasksPage from '../TasksPage';
 import CalendarPage from '../CalendarPage';
 import PaymentsPage from '../PaymentsPage';
+import { useStock } from '../context/StockContext';
+import MobileBottomNav from '../components/MobileBottomNav';
 
 interface DealerAppProps {
   onSignOut: () => void;
@@ -21,6 +23,8 @@ interface DealerAppProps {
 
 export default function DealerApp({ onSignOut }: DealerAppProps) {
   const { currentUser } = useCRM();
+  const { getDealerPendingDispatchesCount } = useStock();
+  const pendingCount = getDealerPendingDispatchesCount(currentUser?.name || '');
   
   const [currentPath, setCurrentPath] = useState('/dealer/dashboard');
   const [routeFilters, setRouteFilters] = useState<any>(null);
@@ -142,6 +146,15 @@ export default function DealerApp({ onSignOut }: DealerAppProps) {
 
         {renderPage()}
       </main>
+
+      {/* Floating Glassmorphic Mobile Bottom Navigation */}
+      <MobileBottomNav 
+        role="Dealer"
+        activeTab={currentPath}
+        onSelectTab={handleNavigate}
+        onOpenMenu={toggleMobileMenu}
+        stockBadge={pendingCount}
+      />
     </div>
   );
 }

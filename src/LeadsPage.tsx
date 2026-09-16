@@ -9,12 +9,24 @@ import {
 } from 'lucide-react';
 import { 
   useCRM, STAGES,
-  DEALER_KYC_DOCS, EMPLOYEE_PROCESSING_DOCS, INSTALLATION_COMPLETION_DOCS, ALL_DOCUMENT_TYPES 
+  SECTION_1_DEALER_KYC_DOCS,
+  SECTION_2_BANK_FIRST_PAYMENT_DOCS,
+  SECTION_2_LINKED_KYC_DOCS,
+  SECTION_3_SITE_INSTALLATION_DOCS,
+  SECTION_4_BANK_SECOND_PAYMENT_DOCS,
+  SECTION_5_GRID_OFFICE_DOCS,
+  ALL_DOCUMENT_TYPES,
+  DOC_REQUIREMENTS,
+  DEALER_KYC_DOCS, 
+  EMPLOYEE_PROCESSING_DOCS, 
+  INSTALLATION_COMPLETION_DOCS
 } from './context/CRMContext';
 import type { 
-  MockLead, Stage, LeadDocument, DocumentStatus, EmployeeWorkStatus, ProjectUpdate, InstallationApprovalStatus 
+  MockLead, Stage, LeadDocument, DocumentStatus, EmployeeWorkStatus, ProjectUpdate, InstallationApprovalStatus,
+  DealerProjectSpecifications
 } from './context/CRMContext';
 import { useUI } from './context/UIContext';
+import { useStock } from './context/StockContext';
 import { canManageModule } from './utils/permissionCalculations';
 import './LeadsPage.css';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
@@ -40,6 +52,7 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
   } = useCRM();
   
   const { showToast } = useUI();
+  const { deductDealerStockForLeadMaterial } = useStock();
 
   // --- STATE ---
   const [searchQuery, setSearchQuery] = useState('');
@@ -120,8 +133,163 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
   const [showAddUpdateModal, setShowAddUpdateModal] = useState(false);
   const [newUpdateForm, setNewUpdateForm] = useState({ description: '', status: 'In Progress' as EmployeeWorkStatus });
 
-  // Categorized Documents Tab
-  const [docCategoryTab, setDocCategoryTab] = useState<'all' | 'kyc' | 'processing' | 'installation'>('all');
+  // Categorized Documents Tab: 5 Sections
+  const [docCategoryTab, setDocCategoryTab] = useState<'all' | 'section1' | 'section2' | 'section3' | 'section4' | 'section5'>('all');
+
+  // Dealer Project Technical Specifications Form State
+  const [specsForm, setSpecsForm] = useState<DealerProjectSpecifications>({});
+  const [isSavingSpecs, setIsSavingSpecs] = useState(false);
+  const [isUploadingEmailProof, setIsUploadingEmailProof] = useState(false);
+
+  // Sync specsForm whenever selectedLead changes
+  useEffect(() => {
+    if (selectedLead) {
+      setSpecsForm(selectedLead.dealerSpecifications || {
+        email: selectedLead.email || '',
+        phone: selectedLead.phone || '',
+        fullName: selectedLead.customer || '',
+        panelWp: '540 Wp',
+        phase: '1 Phase',
+        systemCapacityKw: '3 kW',
+        buildingFloors: '1 Floor',
+        structureHeightAndType: 'Company Structure',
+        lightningArresterStand: 'Yes',
+        pipes10FeetCount: '',
+        longLBendsCount: '',
+        shortLBendsCount: '',
+        tBendsCount: '',
+        straightJointConnectorsCount: '',
+        dcRedWireLength: '',
+        dcBlackWireLength: '',
+        acRedWireLength: '',
+        acBlackWireLength: '',
+        greenWireLength: '',
+        bankIfscCode: ''
+      });
+    }
+  }, [selectedLead?.id]);
+
+  const handleSaveSpecs = async () => {
+    if (!selectedLead) return;
+    try {
+      setIsSavingSpecs(true);
+      const updatedSpecs = { ...specsForm };
+      await updateLead(selectedLead.id, {
+        dealerSpecifications: updatedSpecs,
+        phone: updatedSpecs.phone || selectedLead.phone,
+        email: updatedSpecs.email || selectedLead.email,
+        customer: updatedSpecs.fullName || selectedLead.customer
+      });
+      addActivity({
+        type: 'Technical Specs Saved',
+        message: `${currentUser?.name || 'Staff'} saved project technical specifications for ${selectedLead.customer}`,
+        user: currentUser?.name || 'Staff',
+        leadId: selectedLead.id,
+        dealer: selectedLead.dealer
+      });
+      showToast("Project Technical Specifications saved successfully!", 'success');
+    } catch (err: any) {
+      console.error("Error saving specifications:", err);
+      showToast("Failed to save specifications.", 'error');
+    } finally {
+      setIsSavingSpecs(false);
+    }
+  };
+
+  const handleUploadEmailProof = async (file: File) => {
+    if (!selectedLead) return;
+    try {
+      setIsUploadingEmailProof(true);
+      const fileUrl = await uploadToFirebase(file);
+      const updated = {
+        ...specsForm,
+        emailProofUrl: fileUrl,
+        emailProofFileName: file.name
+      };
+      setSpecsForm(updated);
+      await updateLead(selectedLead.id, { dealerSpecifications: updated });
+      showToast("Email ID photo proof uploaded!", 'success');
+    } catch (err: any) {
+      showToast(err.message || "Failed to upload email proof", 'error');
+    } finally {
+      setIsUploadingEmailProof(false);
+    }
+  };
+
+  // Download Section Selector Modal State
+  const [showDownloadSectionModal, setShowDownloadSectionModal] = useState(false);
+  const [selectedDownloadSections, setSelectedDownloadSections] = useState({
+    s1: true,
+    s2: true,
+    s3: true,
+    s4: true,
+    s5: true
+  });
+
+  const handleDownloadSelectedSections = () => {
+    if (!selectedLead?.documents || selectedLead.documents.length === 0) {
+      showToast("No documents found for this project.", "error");
+      return;
+    }
+
+    // Collect targeted document types based on selected sections
+    const targetDocTypes = new Set<string>();
+    if (selectedDownloadSections.s1) {
+      SECTION_1_DEALER_KYC_DOCS.forEach(t => targetDocTypes.add(t));
+    }
+    if (selectedDownloadSections.s2) {
+      SECTION_2_BANK_FIRST_PAYMENT_DOCS.forEach(t => targetDocTypes.add(t));
+      SECTION_2_LINKED_KYC_DOCS.forEach(t => targetDocTypes.add(t));
+    }
+    if (selectedDownloadSections.s3) {
+      SECTION_3_SITE_INSTALLATION_DOCS.forEach(t => targetDocTypes.add(t));
+    }
+    if (selectedDownloadSections.s4) {
+      SECTION_4_BANK_SECOND_PAYMENT_DOCS.forEach(t => targetDocTypes.add(t));
+      targetDocTypes.add('Geo-Tagged Photo with Customer in Plant');
+    }
+    if (selectedDownloadSections.s5) {
+      SECTION_5_GRID_OFFICE_DOCS.forEach(t => targetDocTypes.add(t));
+      targetDocTypes.add('PROJECT COMPLETION REPORT');
+      targetDocTypes.add('Geo-Tagged Photo with Customer in Plant');
+      targetDocTypes.add('Current Bill');
+    }
+
+    const filesToDownload = selectedLead.documents.filter(d => targetDocTypes.has(d.documentType));
+
+    if (filesToDownload.length === 0) {
+      showToast("No uploaded files found in the selected sections.", "error");
+      return;
+    }
+
+    showToast(`Downloading ${filesToDownload.length} files from selected sections...`, "info");
+    setShowDownloadSectionModal(false);
+
+    filesToDownload.forEach((doc, index) => {
+      if (doc.fileUrl) {
+        setTimeout(() => {
+          const downloadUrl = doc.fileUrl;
+          const link = document.createElement('a');
+          link.href = downloadUrl;
+          link.download = doc.fileName || `${doc.documentType}`;
+          link.target = '_blank';
+          document.body.appendChild(link);
+          link.click();
+          setTimeout(() => {
+            try { document.body.removeChild(link); } catch {}
+          }, 200);
+        }, index * 400);
+      }
+    });
+
+    addActivity({
+      type: 'Documents Downloaded',
+      message: `${currentUser?.role || 'User'} downloaded ${filesToDownload.length} documents from selected sections`,
+      user: currentUser?.name || 'System',
+      dealer: selectedLead.dealer,
+      leadId: selectedLead.id
+    });
+  };
 
   // Installation Approval & Photo Validation Modals
   const [showPhotoRequiredModal, setShowPhotoRequiredModal] = useState(false);
@@ -320,8 +488,29 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
     setSelectedLead({ ...selectedLead, stage: newStage });
   };
 
-  const handleAdminApproveInstallation = (leadId: string) => {
+  const handleAdminApproveInstallation = async (leadId: string) => {
     if (!selectedLead) return;
+
+    // Automatically deduct dealer stock for materials specified in technical specs BOM
+    if (selectedLead.dealerSpecifications && selectedLead.dealer) {
+      const deductionRes = await deductDealerStockForLeadMaterial(
+        leadId,
+        selectedLead.customer,
+        selectedLead.dealer,
+        selectedLead.dealerSpecifications,
+        currentUser?.name || 'Admin'
+      );
+      if (deductionRes.deductedSummary && deductionRes.deductedSummary !== 'No material quantities specified') {
+        addActivity({
+          type: 'Stock Consumed',
+          message: `Material stock deducted for ${selectedLead.customer} from ${selectedLead.dealer} inventory: ${deductionRes.deductedSummary}`,
+          user: currentUser?.name || 'Admin',
+          dealer: selectedLead.dealer,
+          leadId: leadId
+        });
+      }
+    }
+
     updateLead(leadId, { 
       stage: 'Installation', 
       installationApprovalStatus: 'Approved' 
@@ -333,7 +522,7 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
       dealer: selectedLead.dealer,
       leadId: leadId
     });
-    showToast(`Installation approved for ${selectedLead.customer}`, 'success');
+    showToast(`Installation approved & materials deducted from ${selectedLead.dealer}'s inventory!`, 'success');
     setSelectedLead({ 
       ...selectedLead, 
       stage: 'Installation', 
@@ -445,26 +634,15 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
     setShowUploadModal(true);
   };
 
-  const uploadToCloudinary = async (file: File): Promise<string> => {
-    const cloudName = 'pzfmhu4n';
-    const uploadPreset = 'crm-mirrorsolar';
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', uploadPreset);
-
-    const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
-      method: 'POST',
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error?.message || 'Failed to upload document to cloud storage');
+  const uploadToFirebase = async (file: File): Promise<string> => {
+    try {
+      const fileRef = ref(storage, `leads/documents/${Date.now()}_${file.name}`);
+      await uploadBytes(fileRef, file);
+      const downloadUrl = await getDownloadURL(fileRef);
+      return downloadUrl;
+    } catch (err: any) {
+      throw new Error(err.message || 'Failed to upload document to Firebase Storage');
     }
-
-    const data = await response.json();
-    return data.secure_url;
   };
 
   const handleInlineUpload = async (docType: string, file: File) => {
@@ -496,7 +674,7 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
     }
 
     try {
-      const fileUrl = await uploadToCloudinary(file);
+      const fileUrl = await uploadToFirebase(file);
 
       const newDoc: LeadDocument = {
         id: newDocId,
@@ -569,7 +747,7 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
     }
 
     try {
-      const fileUrl = await uploadToCloudinary(uploadForm.file);
+      const fileUrl = await uploadToFirebase(uploadForm.file);
 
       const newDoc: LeadDocument = {
         id: newDocId,
@@ -1345,73 +1523,375 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
               {/* --- PROJECT LEAD SECTIONS --- */}
               {selectedLead.leadType === 'project' && (
                 <>
-                  {/* Documents Section */}
+                  {/* Documents & Specifications Section */}
                   <div className="detail-section">
-                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem'}}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem'}}>
                       <div>
-                        <h3 style={{margin: 0}}>Project Documents</h3>
-                        <p style={{fontSize: '0.85rem', color: '#64748b', margin: '0.25rem 0 0'}}>Categorized lifecycle documents across Dealer, Employee, and Installation stages</p>
+                        <h3 style={{margin: 0, fontSize: '1.2rem', color: '#0b1f3a'}}>Project Documents & Specifications</h3>
+                        <p style={{fontSize: '0.85rem', color: '#64748b', margin: '0.25rem 0 0'}}>
+                          5-Stage lifecycle documentation, dealer technical sizing, and linked bank/grid paperwork
+                        </p>
                       </div>
                       {selectedLead.documents && selectedLead.documents.length > 0 && (
-                        <button className="btn-outline" style={{padding: '0.35rem 0.75rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem'}} onClick={handleDownloadAllDocuments}>
-                          <Download size={14} /> Download All
+                        <button className="btn-outline" style={{padding: '0.4rem 0.9rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem'}} onClick={() => setShowDownloadSectionModal(true)}>
+                          <Download size={15} /> Download Files ({selectedLead.documents.length})
                         </button>
                       )}
                     </div>
 
-                    {/* Category Filter Pills */}
-                    <div style={{display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', overflowX: 'auto', paddingBottom: '0.25rem'}}>
+                    {/* 5-Section Category Navigation Pills */}
+                    <div style={{display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', overflowX: 'auto', paddingBottom: '0.35rem'}}>
                       <button 
-                        className="btn-outline" 
+                        className="filter-pill-btn" 
                         style={{
-                          padding: '0.4rem 0.85rem', fontSize: '0.85rem', borderRadius: '20px',
                           background: docCategoryTab === 'all' ? 'var(--color-navy)' : '#f8fafc',
                           color: docCategoryTab === 'all' ? '#fff' : '#475569',
                           borderColor: docCategoryTab === 'all' ? 'var(--color-navy)' : '#cbd5e1'
                         }}
                         onClick={() => setDocCategoryTab('all')}
                       >
-                        All Documents ({ALL_DOCUMENT_TYPES.length})
+                        🌐 All Stages ({ALL_DOCUMENT_TYPES.length})
                       </button>
                       <button 
-                        className="btn-outline" 
+                        className="filter-pill-btn" 
                         style={{
-                          padding: '0.4rem 0.85rem', fontSize: '0.85rem', borderRadius: '20px',
-                          background: docCategoryTab === 'kyc' ? 'var(--color-navy)' : '#f8fafc',
-                          color: docCategoryTab === 'kyc' ? '#fff' : '#475569',
-                          borderColor: docCategoryTab === 'kyc' ? 'var(--color-navy)' : '#cbd5e1'
+                          background: docCategoryTab === 'section1' ? 'var(--color-navy)' : '#f8fafc',
+                          color: docCategoryTab === 'section1' ? '#fff' : '#475569',
+                          borderColor: docCategoryTab === 'section1' ? 'var(--color-navy)' : '#cbd5e1'
                         }}
-                        onClick={() => setDocCategoryTab('kyc')}
+                        onClick={() => setDocCategoryTab('section1')}
                       >
-                        📁 1. Dealer KYC ({DEALER_KYC_DOCS.length})
+                        📁 1. Dealer KYC & Tech Specs ({SECTION_1_DEALER_KYC_DOCS.length})
                       </button>
                       <button 
-                        className="btn-outline" 
+                        className="filter-pill-btn" 
                         style={{
-                          padding: '0.4rem 0.85rem', fontSize: '0.85rem', borderRadius: '20px',
-                          background: docCategoryTab === 'processing' ? 'var(--color-navy)' : '#f8fafc',
-                          color: docCategoryTab === 'processing' ? '#fff' : '#475569',
-                          borderColor: docCategoryTab === 'processing' ? 'var(--color-navy)' : '#cbd5e1'
+                          background: docCategoryTab === 'section2' ? 'var(--color-navy)' : '#f8fafc',
+                          color: docCategoryTab === 'section2' ? '#fff' : '#475569',
+                          borderColor: docCategoryTab === 'section2' ? 'var(--color-navy)' : '#cbd5e1'
                         }}
-                        onClick={() => setDocCategoryTab('processing')}
+                        onClick={() => setDocCategoryTab('section2')}
                       >
-                        ⚙️ 2. Employee Processing ({EMPLOYEE_PROCESSING_DOCS.length})
+                        🏦 2. Bank 1st Payment ({SECTION_2_BANK_FIRST_PAYMENT_DOCS.length})
                       </button>
                       <button 
-                        className="btn-outline" 
+                        className="filter-pill-btn" 
                         style={{
-                          padding: '0.4rem 0.85rem', fontSize: '0.85rem', borderRadius: '20px',
-                          background: docCategoryTab === 'installation' ? 'var(--color-navy)' : '#f8fafc',
-                          color: docCategoryTab === 'installation' ? '#fff' : '#475569',
-                          borderColor: docCategoryTab === 'installation' ? 'var(--color-navy)' : '#cbd5e1'
+                          background: docCategoryTab === 'section3' ? 'var(--color-navy)' : '#f8fafc',
+                          color: docCategoryTab === 'section3' ? '#fff' : '#475569',
+                          borderColor: docCategoryTab === 'section3' ? 'var(--color-navy)' : '#cbd5e1'
                         }}
-                        onClick={() => setDocCategoryTab('installation')}
+                        onClick={() => setDocCategoryTab('section3')}
                       >
-                        ⚡ 3. Installation & Completion ({INSTALLATION_COMPLETION_DOCS.length})
+                        ⚡ 3. Site Installation ({SECTION_3_SITE_INSTALLATION_DOCS.length})
+                      </button>
+                      <button 
+                        className="filter-pill-btn" 
+                        style={{
+                          background: docCategoryTab === 'section4' ? 'var(--color-navy)' : '#f8fafc',
+                          color: docCategoryTab === 'section4' ? '#fff' : '#475569',
+                          borderColor: docCategoryTab === 'section4' ? 'var(--color-navy)' : '#cbd5e1'
+                        }}
+                        onClick={() => setDocCategoryTab('section4')}
+                      >
+                        💳 4. Bank 2nd Payment ({SECTION_4_BANK_SECOND_PAYMENT_DOCS.length})
+                      </button>
+                      <button 
+                        className="filter-pill-btn" 
+                        style={{
+                          background: docCategoryTab === 'section5' ? 'var(--color-navy)' : '#f8fafc',
+                          color: docCategoryTab === 'section5' ? '#fff' : '#475569',
+                          borderColor: docCategoryTab === 'section5' ? 'var(--color-navy)' : '#cbd5e1'
+                        }}
+                        onClick={() => setDocCategoryTab('section5')}
+                      >
+                        🏢 5. Grid / DISCOM Docs ({SECTION_5_GRID_OFFICE_DOCS.length})
                       </button>
                     </div>
 
-                    {/* Helper to render each document card */}
+                    {/* ========================================================= */}
+                    {/* SECTION 1: DEALER TECHNICAL SPECIFICATIONS FORM            */}
+                    {/* ========================================================= */}
+                    {(docCategoryTab === 'all' || docCategoryTab === 'section1') && (
+                      <div style={{
+                        background: '#ffffff',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '12px',
+                        padding: '1.5rem',
+                        marginBottom: '2rem',
+                        boxShadow: '0 4px 12px rgba(11, 31, 58, 0.04)'
+                      }}>
+                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.5rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem'}}>
+                          <div>
+                            <h4 style={{margin: 0, fontSize: '1.05rem', color: '#0b1f3a', display: 'flex', alignItems: 'center', gap: '0.4rem'}}>
+                              📐 Dealer Technical Specifications & Bill of Materials (BOM)
+                            </h4>
+                            <span style={{fontSize: '0.8rem', color: '#64748b'}}>
+                              Enter project electrical sizing, conduit bends, wire lengths, and bank loan details
+                            </span>
+                          </div>
+
+                          <button 
+                            className="btn-primary"
+                            onClick={handleSaveSpecs}
+                            disabled={isSavingSpecs}
+                            style={{padding: '0.45rem 1.1rem', fontSize: '0.85rem'}}
+                          >
+                            {isSavingSpecs ? <><Loader2 size={14} style={{animation: 'spin 1s linear infinite'}} /> Saving...</> : <>💾 Save Specifications</>}
+                          </button>
+                        </div>
+
+                        {/* 1. Customer & Loan Basic Info */}
+                        <div style={{marginBottom: '1.25rem'}}>
+                          <div style={{fontSize: '0.82rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '0.6rem'}}>
+                            1. Customer & Banking Data
+                          </div>
+                          <div className="form-grid" style={{gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.85rem'}}>
+                            <div className="form-group">
+                              <label>Customer Full Name</label>
+                              <input 
+                                type="text"
+                                value={specsForm.fullName || ''}
+                                onChange={e => setSpecsForm({ ...specsForm, fullName: e.target.value })}
+                                placeholder="E.g. Rajesh Sharma"
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label>Phone Number</label>
+                              <input 
+                                type="tel"
+                                value={specsForm.phone || ''}
+                                onChange={e => setSpecsForm({ ...specsForm, phone: e.target.value })}
+                                placeholder="E.g. 9876543210"
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label>Email ID (Text or Photo)</label>
+                              <div style={{display: 'flex', gap: '0.4rem'}}>
+                                <input 
+                                  type="email"
+                                  value={specsForm.email || ''}
+                                  onChange={e => setSpecsForm({ ...specsForm, email: e.target.value })}
+                                  placeholder="customer@gmail.com"
+                                  style={{flex: 1}}
+                                />
+                                <label className="btn-outline" style={{padding: '0.45rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'}} title="Upload Email ID Screenshot">
+                                  <Camera size={16} />
+                                  <input 
+                                    type="file" 
+                                    accept="image/*"
+                                    style={{display: 'none'}}
+                                    onChange={e => {
+                                      if (e.target.files && e.target.files.length > 0) {
+                                        handleUploadEmailProof(e.target.files[0]);
+                                      }
+                                    }}
+                                  />
+                                </label>
+                              </div>
+                              {specsForm.emailProofUrl && (
+                                <div style={{fontSize: '0.75rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.2rem'}}>
+                                  ✓ Photo Uploaded: 
+                                  <a href={specsForm.emailProofUrl} target="_blank" rel="noreferrer" style={{color: '#2563eb', textDecoration: 'underline'}}>
+                                    {specsForm.emailProofFileName || 'View'}
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+                            <div className="form-group">
+                              <label>Bank IFSC Code (for loan processing)</label>
+                              <input 
+                                type="text"
+                                value={specsForm.bankIfscCode || ''}
+                                onChange={e => setSpecsForm({ ...specsForm, bankIfscCode: e.target.value.toUpperCase() })}
+                                placeholder="E.g. HDFC0001234 / SBIN0004567"
+                                style={{textTransform: 'uppercase', fontWeight: 600}}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 2. Solar Equipment & Structure Sizing */}
+                        <div style={{marginBottom: '1.25rem', paddingTop: '1rem', borderTop: '1px solid #f1f5f9'}}>
+                          <div style={{fontSize: '0.82rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '0.6rem'}}>
+                            2. Solar Equipment & Structure Sizing
+                          </div>
+                          <div className="form-grid" style={{gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.85rem'}}>
+                            <div className="form-group">
+                              <label>Which Company Panels and Their Wp?</label>
+                              <input 
+                                type="text"
+                                value={specsForm.panelWp || ''}
+                                onChange={e => setSpecsForm({ ...specsForm, panelWp: e.target.value })}
+                                placeholder="E.g. Waaree 540 Wp / Adani 610 Wp Bifacial"
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label>Phase Needed</label>
+                              <select 
+                                value={specsForm.phase || '1 Phase'}
+                                onChange={e => setSpecsForm({ ...specsForm, phase: e.target.value as '1 Phase' | '3 Phase' })}
+                              >
+                                <option value="1 Phase">1 Phase (Single Phase)</option>
+                                <option value="3 Phase">3 Phase (Three Phase)</option>
+                              </select>
+                            </div>
+                            <div className="form-group">
+                              <label>System Capacity (KW)</label>
+                              <input 
+                                type="text"
+                                value={specsForm.systemCapacityKw || ''}
+                                onChange={e => setSpecsForm({ ...specsForm, systemCapacityKw: e.target.value })}
+                                placeholder="E.g. 3 kW, 5 kW, 10 kW"
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label>Building Floors</label>
+                              <input 
+                                type="text"
+                                value={specsForm.buildingFloors || ''}
+                                onChange={e => setSpecsForm({ ...specsForm, buildingFloors: e.target.value })}
+                                placeholder="E.g. 1 Floor / 2 Floors / G+2"
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label>Structure Height & Type</label>
+                              <select 
+                                value={specsForm.structureHeightAndType || 'Company Structure'}
+                                onChange={e => setSpecsForm({ ...specsForm, structureHeightAndType: e.target.value })}
+                              >
+                                <option value="Company Structure">Standard Company Structure</option>
+                                <option value="Custom GI Welding Structure">Custom GI Welding Structure</option>
+                                <option value="Elevated Rooftop Structure">Elevated Rooftop Structure (8ft+)</option>
+                                <option value="Tin Shed Flush Mount">Tin Shed / Sheet Mount</option>
+                              </select>
+                            </div>
+                            <div className="form-group">
+                              <label>Lightning Arrester Stand?</label>
+                              <select 
+                                value={specsForm.lightningArresterStand || 'Yes'}
+                                onChange={e => setSpecsForm({ ...specsForm, lightningArresterStand: e.target.value as 'Yes' | 'No' })}
+                              >
+                                <option value="Yes">Yes (Iron Stand Needed)</option>
+                                <option value="No">No (Not Required)</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 3. Plumbing, Conduit & Iron Fittings */}
+                        <div style={{marginBottom: '1.25rem', paddingTop: '1rem', borderTop: '1px solid #f1f5f9'}}>
+                          <div style={{fontSize: '0.82rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '0.6rem'}}>
+                            3. Conduit & Iron Fittings Required
+                          </div>
+                          <div className="form-grid" style={{gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.85rem'}}>
+                            <div className="form-group">
+                              <label>10-ft Pipes Needed</label>
+                              <input 
+                                type="number"
+                                value={specsForm.pipes10FeetCount || ''}
+                                onChange={e => setSpecsForm({ ...specsForm, pipes10FeetCount: e.target.value })}
+                                placeholder="Count (e.g. 6)"
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label>Long "L" Bends</label>
+                              <input 
+                                type="number"
+                                value={specsForm.longLBendsCount || ''}
+                                onChange={e => setSpecsForm({ ...specsForm, longLBendsCount: e.target.value })}
+                                placeholder="Count (e.g. 4)"
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label>Short "L" Bends</label>
+                              <input 
+                                type="number"
+                                value={specsForm.shortLBendsCount || ''}
+                                onChange={e => setSpecsForm({ ...specsForm, shortLBendsCount: e.target.value })}
+                                placeholder="Count (e.g. 8)"
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label>"T" Bends</label>
+                              <input 
+                                type="number"
+                                value={specsForm.tBendsCount || ''}
+                                onChange={e => setSpecsForm({ ...specsForm, tBendsCount: e.target.value })}
+                                placeholder="Count (e.g. 2)"
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label>Straight Joint Connectors</label>
+                              <input 
+                                type="number"
+                                value={specsForm.straightJointConnectorsCount || ''}
+                                onChange={e => setSpecsForm({ ...specsForm, straightJointConnectorsCount: e.target.value })}
+                                placeholder="Count (e.g. 6)"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 4. Electrical Wiring Requirements */}
+                        <div style={{paddingTop: '1rem', borderTop: '1px solid #f1f5f9'}}>
+                          <div style={{fontSize: '0.82rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '0.6rem'}}>
+                            4. Electrical Wiring Requirements (Meters / Length)
+                          </div>
+                          <div className="form-grid" style={{gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.85rem'}}>
+                            <div className="form-group">
+                              <label>DC RED Wire (m)</label>
+                              <input 
+                                type="text"
+                                value={specsForm.dcRedWireLength || ''}
+                                onChange={e => setSpecsForm({ ...specsForm, dcRedWireLength: e.target.value })}
+                                placeholder="E.g. 30m"
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label>DC BLACK Wire (m)</label>
+                              <input 
+                                type="text"
+                                value={specsForm.dcBlackWireLength || ''}
+                                onChange={e => setSpecsForm({ ...specsForm, dcBlackWireLength: e.target.value })}
+                                placeholder="E.g. 30m"
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label>AC RED Wire (m)</label>
+                              <input 
+                                type="text"
+                                value={specsForm.acRedWireLength || ''}
+                                onChange={e => setSpecsForm({ ...specsForm, acRedWireLength: e.target.value })}
+                                placeholder="E.g. 25m"
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label>AC BLACK Wire (m)</label>
+                              <input 
+                                type="text"
+                                value={specsForm.acBlackWireLength || ''}
+                                onChange={e => setSpecsForm({ ...specsForm, acBlackWireLength: e.target.value })}
+                                placeholder="E.g. 25m"
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label>GREEN (Earthing) Wire</label>
+                              <input 
+                                type="text"
+                                value={specsForm.greenWireLength || ''}
+                                onChange={e => setSpecsForm({ ...specsForm, greenWireLength: e.target.value })}
+                                placeholder="E.g. 20m"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ========================================================= */}
+                    {/* DOCUMENT CARDS RENDERER HELPER                             */}
+                    {/* ========================================================= */}
                     {(() => {
                       const renderCategorySection = (
                         docTypes: string[], 
@@ -1419,140 +1899,217 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                         subtitle: string, 
                         badgeText: string, 
                         badgeColor: string,
-                        lockNotice?: string
+                        linkedDocTypes: string[] = [],
+                        sectionBannerNotice?: string
                       ) => {
-                        const uploadedCount = docTypes.filter(t => selectedLead.documents?.some(d => d.documentType === t)).length;
+                        const totalTypes = docTypes.length;
+                        const uploadedTypesCount = docTypes.filter(t => selectedLead.documents?.some(d => d.documentType === t)).length;
+
                         return (
-                          <div style={{marginBottom: '1.75rem', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '1.25rem', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.02)'}}>
-                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem'}}>
+                          <div style={{
+                            marginBottom: '2rem', 
+                            border: '1px solid #e2e8f0', 
+                            borderRadius: '14px', 
+                            padding: '1.5rem', 
+                            background: '#ffffff', 
+                            boxShadow: '0 2px 8px rgba(15, 23, 42, 0.03)'
+                          }}>
+                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem'}}>
                               <div>
                                 <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
-                                  <h4 style={{margin: 0, fontSize: '1rem', color: '#1e293b', fontWeight: 700}}>{title}</h4>
-                                  <span style={{fontSize: '0.7rem', padding: '0.15rem 0.5rem', borderRadius: '12px', background: badgeColor, color: '#1e293b', fontWeight: 600}}>
+                                  <h4 style={{margin: 0, fontSize: '1.1rem', color: '#0b1f3a', fontWeight: 800}}>{title}</h4>
+                                  <span style={{fontSize: '0.72rem', padding: '0.2rem 0.6rem', borderRadius: '12px', background: badgeColor, color: '#0b1f3a', fontWeight: 700}}>
                                     {badgeText}
                                   </span>
                                 </div>
-                                <p style={{margin: '0.25rem 0 0', fontSize: '0.8rem', color: '#64748b'}}>{subtitle}</p>
+                                <p style={{margin: '0.25rem 0 0', fontSize: '0.85rem', color: '#64748b'}}>{subtitle}</p>
                               </div>
-                              <span style={{fontSize: '0.8rem', fontWeight: 600, color: uploadedCount === docTypes.length ? '#16a34a' : '#475569', background: '#f1f5f9', padding: '0.25rem 0.6rem', borderRadius: '6px'}}>
-                                {uploadedCount} / {docTypes.length} Uploaded
+                              <span style={{
+                                fontSize: '0.85rem', 
+                                fontWeight: 700, 
+                                color: uploadedTypesCount === totalTypes ? '#16a34a' : '#475569', 
+                                background: uploadedTypesCount === totalTypes ? '#dcfce7' : '#f1f5f9', 
+                                padding: '0.3rem 0.75rem', 
+                                borderRadius: '8px'
+                              }}>
+                                {uploadedTypesCount} / {totalTypes} Completed
                               </span>
                             </div>
 
-                            {lockNotice && (
-                              <div style={{background: '#f8fafc', padding: '0.5rem 0.75rem', borderRadius: '6px', fontSize: '0.8rem', color: '#64748b', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem', border: '1px dashed #cbd5e1'}}>
-                                <Lock size={14} color="#94a3b8" /> {lockNotice}
+                            {sectionBannerNotice && (
+                              <div style={{
+                                background: '#eff6ff', 
+                                padding: '0.65rem 1rem', 
+                                borderRadius: '8px', 
+                                fontSize: '0.85rem', 
+                                color: '#1e40af', 
+                                marginBottom: '1.25rem', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '0.5rem', 
+                                border: '1px solid #bfdbfe'
+                              }}>
+                                <AlertTriangle size={16} color="#2563eb" /> {sectionBannerNotice}
                               </div>
                             )}
 
                             <div className="document-grid">
                               {docTypes.map(type => {
-                                const doc = selectedLead.documents?.find(d => d.documentType === type);
-                                if (doc) {
-                                  return (
-                                    <div key={type} className="document-card">
-                                      <div className="document-card-header">
-                                        <span className="document-card-title">{type}</span>
-                                        <span style={{
-                                          fontSize: '0.65rem', padding: '0.2rem 0.4rem', borderRadius: '12px', fontWeight: 600,
-                                          background: doc.status === 'Verified' ? '#dcfce7' : doc.status === 'Pending' ? '#fef9c3' : '#f1f5f9',
-                                          color: doc.status === 'Verified' ? '#16a34a' : doc.status === 'Pending' ? '#ca8a04' : '#475569'
-                                        }}>
-                                          {doc.status}
+                                const req = DOC_REQUIREMENTS[type] || { maxImages: 1 };
+                                const isLinked = linkedDocTypes.includes(type);
+                                const existingDocs = selectedLead.documents?.filter(d => d.documentType === type) || [];
+                                const hasFiles = existingDocs.length > 0;
+
+                                return (
+                                  <div 
+                                    key={type} 
+                                    className={`document-card ${!hasFiles ? 'empty' : ''}`}
+                                    style={{
+                                      position: 'relative',
+                                      borderColor: hasFiles ? '#cbd5e1' : '#e2e8f0',
+                                      background: hasFiles ? '#ffffff' : '#f8fafc'
+                                    }}
+                                  >
+                                    <div className="document-card-header" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
+                                      <div>
+                                        <span className="document-card-title" style={{fontWeight: 800, color: '#0b1f3a', fontSize: '0.92rem'}}>
+                                          {type}
                                         </span>
-                                      </div>
-                                      <div className="document-card-filename" title={doc.fileName}>
-                                        <FileText size={14} color="#64748b" /> 
-                                        <span style={{whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>{doc.fileName}</span>
-                                      </div>
-                                      <div style={{fontSize: '0.7rem', color: '#94a3b8', display: 'flex', justifyContent: 'space-between', marginTop: '0.25rem'}}>
-                                        <span>{new Date(doc.uploadedAt).toLocaleDateString()}</span>
-                                        <span style={{fontWeight: 600, color: doc.uploadedByRole === 'Dealer' ? '#2563eb' : '#059669'}}>
-                                          {doc.uploadedByRole || 'System'}
-                                        </span>
-                                      </div>
-                                      
-                                      <div className="document-card-actions" style={{display: 'flex', gap: '0.35rem', marginTop: '0.5rem', flexWrap: 'wrap'}}>
-                                        <button 
-                                          className="btn-outline" 
-                                          style={{padding: '0.25rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.2rem'}} 
-                                          onClick={() => { setPreviewDoc(doc); setShowPreviewModal(true); }}
-                                          title="View Document"
-                                        >
-                                          <Eye size={12} /> View
-                                        </button>
-                                        <button 
-                                          className="btn-outline" 
-                                          style={{padding: '0.25rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.2rem'}} 
-                                          onClick={() => handleDownloadDocument(doc)}
-                                          title="Download Document"
-                                        >
-                                          <Download size={12} /> Download
-                                        </button>
-                                        {currentUser?.id === doc.uploadedByUserId && (
-                                          <>
-                                            <button 
-                                              className="btn-outline" 
-                                              style={{padding: '0.25rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.2rem'}} 
-                                              onClick={() => openReplaceModal(doc.id)}
-                                              title="Replace File"
-                                            >
-                                              <RefreshCw size={12} /> Replace
-                                            </button>
-                                            <button 
-                                              className="btn-outline" 
-                                              style={{padding: '0.25rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.2rem', color: '#ef4444', borderColor: '#fca5a5'}} 
-                                              onClick={() => { setDocToDelete(doc.id); setShowDeleteDocModal(true); }}
-                                              title="Delete File"
-                                            >
-                                              <Trash2 size={12} /> Delete
-                                            </button>
-                                          </>
+                                        {isLinked && (
+                                          <div style={{fontSize: '0.7rem', color: '#059669', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.2rem', marginTop: '0.2rem'}}>
+                                            🔗 Auto-Linked Document
+                                          </div>
                                         )}
                                       </div>
-                                      
-                                      {(isAdmin || currentUser?.role === 'Employee') && (
-                                        <select 
-                                          className="filter-select" 
-                                          style={{padding: '0.2rem', fontSize: '0.75rem', marginTop: '0.5rem'}}
-                                          value=""
-                                          onChange={(e) => {
-                                            const action = e.target.value;
-                                            if (action === 'verify') { setDocToVerify(doc); setShowVerifyDocModal(true); }
-                                            else if (action === 'pending') handleMarkPendingDocument(doc);
-                                            else if (action === 'request') { setDocToRequest(doc); setRequestDocNotes(''); setShowRequestDocModal(true); }
-                                            else if (action === 'reject') { setDocToReject(doc); setRejectReason(''); setShowRejectDocModal(true); }
-                                          }}
-                                        >
-                                          <option value="" disabled>Document Actions...</option>
-                                          <option value="verify">Verify</option>
-                                          <option value="pending">Mark Pending</option>
-                                          <option value="request">Request Additional</option>
-                                          <option value="reject">Reject</option>
-                                        </select>
+
+                                      {hasFiles && (
+                                        <span style={{
+                                          fontSize: '0.7rem', padding: '0.2rem 0.5rem', borderRadius: '12px', fontWeight: 700,
+                                          background: existingDocs[0].status === 'Verified' ? '#dcfce7' : existingDocs[0].status === 'Pending' ? '#fef9c3' : '#f1f5f9',
+                                          color: existingDocs[0].status === 'Verified' ? '#16a34a' : existingDocs[0].status === 'Pending' ? '#ca8a04' : '#475569'
+                                        }}>
+                                          {existingDocs[0].status}
+                                        </span>
                                       )}
                                     </div>
-                                  );
-                                }
-                                
-                                return (
-                                  <div key={type} className="document-card empty">
-                                    <FileText size={24} color="#cbd5e1" />
-                                    <span className="document-card-title">{type}</span>
-                                    <label className="inline-upload-btn">
-                                      <Upload size={14} /> Upload
-                                      <input 
-                                        type="file" 
-                                        style={{display: 'none'}}
-                                        onChange={async (e) => {
-                                          if (e.target.files && e.target.files.length > 0) {
-                                            const fileToUpload = e.target.files[0];
-                                            await handleInlineUpload(type, fileToUpload);
-                                            e.target.value = '';
-                                          }
-                                        }}
-                                      />
-                                    </label>
+
+                                    {/* Notice / Requirement Text */}
+                                    {req.notice && (
+                                      <div style={{fontSize: '0.75rem', color: '#64748b', fontStyle: 'italic', margin: '0.35rem 0'}}>
+                                        {req.notice}
+                                      </div>
+                                    )}
+
+                                    {/* Uploaded Files List */}
+                                    {hasFiles ? (
+                                      <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem'}}>
+                                        {existingDocs.map((doc, idx) => (
+                                          <div key={doc.id} style={{background: '#f8fafc', padding: '0.5rem 0.65rem', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
+                                            <div className="document-card-filename" style={{display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem'}}>
+                                              <FileText size={14} color="#64748b" /> 
+                                              <span style={{whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1}} title={doc.fileName}>
+                                                {doc.fileName} {existingDocs.length > 1 ? `(#${idx + 1})` : ''}
+                                              </span>
+                                            </div>
+
+                                            <div style={{fontSize: '0.7rem', color: '#94a3b8', display: 'flex', justifyContent: 'space-between', marginTop: '0.25rem'}}>
+                                              <span>{new Date(doc.uploadedAt).toLocaleDateString('en-IN')}</span>
+                                              <span style={{fontWeight: 600, color: doc.uploadedByRole === 'Dealer' ? '#2563eb' : '#059669'}}>
+                                                {doc.uploadedByRole || 'Staff'}
+                                              </span>
+                                            </div>
+
+                                            <div className="document-card-actions" style={{display: 'flex', gap: '0.35rem', marginTop: '0.4rem', flexWrap: 'wrap'}}>
+                                              <button 
+                                                className="btn-outline" 
+                                                style={{padding: '0.2rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.2rem'}} 
+                                                onClick={() => { setPreviewDoc(doc); setShowPreviewModal(true); }}
+                                                title="View Document"
+                                              >
+                                                <Eye size={12} /> View
+                                              </button>
+                                              <button 
+                                                className="btn-outline" 
+                                                style={{padding: '0.2rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.2rem'}} 
+                                                onClick={() => handleDownloadDocument(doc)}
+                                                title="Download Document"
+                                              >
+                                                <Download size={12} /> Download
+                                              </button>
+                                              {currentUser?.id === doc.uploadedByUserId && (
+                                                <button 
+                                                  className="btn-outline" 
+                                                  style={{padding: '0.2rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.2rem', color: '#ef4444', borderColor: '#fca5a5'}} 
+                                                  onClick={() => { setDocToDelete(doc.id); setShowDeleteDocModal(true); }}
+                                                  title="Delete File"
+                                                >
+                                                  <Trash2 size={12} /> Delete
+                                                </button>
+                                              )}
+                                            </div>
+                                          </div>
+                                        ))}
+
+                                        {/* Multi-Image Upload Button when below max */}
+                                        {existingDocs.length < req.maxImages && (
+                                          <label className="inline-upload-btn" style={{marginTop: '0.25rem', width: '100%', boxSizing: 'border-box', textAlign: 'center'}}>
+                                            <Upload size={13} /> + Add Another Image ({existingDocs.length}/{req.maxImages === 999 ? '∞' : req.maxImages})
+                                            <input 
+                                              type="file" 
+                                              style={{display: 'none'}}
+                                              onChange={async (e) => {
+                                                if (e.target.files && e.target.files.length > 0) {
+                                                  const fileToUpload = e.target.files[0];
+                                                  await handleInlineUpload(type, fileToUpload);
+                                                  e.target.value = '';
+                                                }
+                                              }}
+                                            />
+                                          </label>
+                                        )}
+
+                                        {/* Admin / Employee Actions */}
+                                        {(isAdmin || currentUser?.role === 'Employee') && (
+                                          <select 
+                                            className="filter-select" 
+                                            style={{padding: '0.3rem', fontSize: '0.75rem', marginTop: '0.4rem', width: '100%'}}
+                                            value=""
+                                            onChange={(e) => {
+                                              const action = e.target.value;
+                                              const doc = existingDocs[0];
+                                              if (action === 'verify') { setDocToVerify(doc); setShowVerifyDocModal(true); }
+                                              else if (action === 'pending') handleMarkPendingDocument(doc);
+                                              else if (action === 'request') { setDocToRequest(doc); setRequestDocNotes(''); setShowRequestDocModal(true); }
+                                              else if (action === 'reject') { setDocToReject(doc); setRejectReason(''); setShowRejectDocModal(true); }
+                                            }}
+                                          >
+                                            <option value="" disabled>Document Actions...</option>
+                                            <option value="verify">✓ Verify</option>
+                                            <option value="pending">⏳ Mark Pending</option>
+                                            <option value="request">❓ Request Additional</option>
+                                            <option value="reject">✕ Reject</option>
+                                          </select>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', marginTop: '0.75rem'}}>
+                                        <FileText size={28} color="#cbd5e1" />
+                                        <label className="inline-upload-btn" style={{width: '100%', boxSizing: 'border-box', textAlign: 'center'}}>
+                                          <Upload size={14} /> Upload {req.maxImages > 1 ? `(Max ${req.maxImages === 999 ? 'Multiple' : req.maxImages})` : ''}
+                                          <input 
+                                            type="file" 
+                                            style={{display: 'none'}}
+                                            onChange={async (e) => {
+                                              if (e.target.files && e.target.files.length > 0) {
+                                                const fileToUpload = e.target.files[0];
+                                                await handleInlineUpload(type, fileToUpload);
+                                                e.target.value = '';
+                                              }
+                                            }}
+                                          />
+                                        </label>
+                                      </div>
+                                    )}
                                   </div>
                                 );
                               })}
@@ -1561,38 +2118,67 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
                         );
                       };
 
-                      const isPostApproval = selectedLead.stage === 'Installation' || selectedLead.stage === 'Completed';
-
                       return (
                         <>
-                          {(docCategoryTab === 'all' || docCategoryTab === 'kyc') && (
+                          {/* 1. FIRST DOC: Dealer KYC & Site Survey Documents */}
+                          {(docCategoryTab === 'all' || docCategoryTab === 'section1') && (
                             renderCategorySection(
-                              DEALER_KYC_DOCS,
-                              '1. Customer KYC / Dealer Documents',
-                              'Customer identity and verification records uploaded during Lead stage',
-                              'Dealer / Customer KYC',
-                              '#dbeafe'
+                              SECTION_1_DEALER_KYC_DOCS,
+                              '1. First Doc: Dealer KYC & Site Survey Documents',
+                              'Customer identity proofs, electricity bill, house tax, meter, building, and signature photos',
+                              'First Doc (Dealer KYC)',
+                              '#dbeafe',
+                              [],
+                              'Please ensure all identity documents, bank cheque, and electricity bills are high-resolution and clearly readable.'
                             )
                           )}
 
-                          {(docCategoryTab === 'all' || docCategoryTab === 'processing') && (
+                          {/* 2. SECOND DOC: Bank First Payment Documents */}
+                          {(docCategoryTab === 'all' || docCategoryTab === 'section2') && (
                             renderCategorySection(
-                              EMPLOYEE_PROCESSING_DOCS,
-                              '2. Employee Processing Documents',
-                              'Official agreements, feasibility reports, and receipts uploaded by Employee upon conversion',
-                              'Employee Processing (Converted Stage)',
-                              '#fef3c7'
+                              [...SECTION_2_BANK_FIRST_PAYMENT_DOCS, ...SECTION_2_LINKED_KYC_DOCS],
+                              '2. Second Doc: Bank First Payment Documents',
+                              'E-Token, agreements, feasibility letter, JanSamarth doc, and auto-linked customer KYC proofs',
+                              'Second Doc (Bank 1st Payment)',
+                              '#fef3c7',
+                              SECTION_2_LINKED_KYC_DOCS
                             )
                           )}
 
-                          {(docCategoryTab === 'all' || docCategoryTab === 'installation') && (
+                          {/* 3. THIRD DOC: Site Installation Photos */}
+                          {(docCategoryTab === 'all' || docCategoryTab === 'section3') && (
                             renderCategorySection(
-                              INSTALLATION_COMPLETION_DOCS,
-                              '3. Project Installation & Completion Documents',
-                              'Site photos, serial numbers, synchronization, PCR, and DCR certificates uploaded during installation',
-                              'Installation & Completion Stage',
+                              SECTION_3_SITE_INSTALLATION_DOCS,
+                              '3. Third Doc: Site Installation Photos',
+                              'Geo-tagged customer photo, earthing, inverter serial number, and panel serial barcodes (min 2 to infinite)',
+                              'Third Doc (Installation Photos)',
                               '#e0e7ff',
-                              !isPostApproval ? 'Requires Admin Installation Approval to enter Installation stage' : undefined
+                              [],
+                              'All installation photos must be sharp and clear to see text, panel barcodes, and inverter serial numbers.'
+                            )
+                          )}
+
+                          {/* 4. FOURTH DOC: Bank Second Payment Documents */}
+                          {(docCategoryTab === 'all' || docCategoryTab === 'section4') && (
+                            renderCategorySection(
+                              ['Geo-Tagged Photo with Customer in Plant', ...SECTION_4_BANK_SECOND_PAYMENT_DOCS],
+                              '4. Fourth Doc: Bank Second Payment Documents',
+                              'Project completion report, tax invoice bill, and auto-linked geo-tagged plant photo',
+                              'Fourth Doc (Bank 2nd Payment)',
+                              '#dcfce7',
+                              ['Geo-Tagged Photo with Customer in Plant']
+                            )
+                          )}
+
+                          {/* 5. FIFTH DOC: Grid / DISCOM Office Documents */}
+                          {(docCategoryTab === 'all' || docCategoryTab === 'section5') && (
+                            renderCategorySection(
+                              ['Annexure - A', 'Annexure - C', 'SYNCHRONISATION', 'PROJECT COMPLETION REPORT', 'S Number Photo', 'DCR Certificate Documents', 'Geo-Tagged Photo with Customer in Plant', 'Current Bill'],
+                              '5. Fifth Doc: Grid / DISCOM Office Documents',
+                              'Annexure A & C, synchronisation report, S-Number photo, DCR certificates, and linked reports',
+                              'Fifth Doc (Grid / DISCOM)',
+                              '#f3e8ff',
+                              ['PROJECT COMPLETION REPORT', 'Geo-Tagged Photo with Customer in Plant', 'Current Bill']
                             )
                           )}
                         </>
@@ -2387,6 +2973,250 @@ export default function LeadsPage({ stage, status, action, filter }: LeadsPagePr
             <div className="modal-actions">
               <button className="btn-outline" onClick={() => { setShowRejectInstallationModal(false); setInstallationRejectReason(''); }}>Cancel</button>
               <button className="btn-primary" style={{background: '#dc2626', borderColor: '#dc2626'}} onClick={handleAdminRejectInstallation}>Confirm Rejection</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Download Section Selector Modal */}
+      {showDownloadSectionModal && selectedLead && (
+        <div className="modal-overlay" style={{zIndex: 1100}}>
+          <div className="modal-content" style={{maxWidth: '560px', width: '100%', borderRadius: '14px', padding: '1.75rem'}}>
+            <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '1rem'}}>
+              <div style={{display: 'flex', alignItems: 'center', gap: '0.75rem'}}>
+                <div style={{width: '42px', height: '42px', borderRadius: '10px', background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb'}}>
+                  <Download size={22} />
+                </div>
+                <div>
+                  <h2 style={{fontSize: '1.2rem', fontWeight: 800, color: '#1e293b', margin: 0}}>Download Project Documents</h2>
+                  <p style={{fontSize: '0.85rem', color: '#64748b', margin: '2px 0 0 0'}}>Select which of the 5 section(s) you wish to download</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowDownloadSectionModal(false)}
+                style={{border: 'none', background: '#f1f5f9', borderRadius: '50%', width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b'}}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{background: '#f8fafc', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
+              <span style={{fontSize: '0.85rem', color: '#475569', fontWeight: 600}}>
+                Customer: <strong style={{color: '#0f172a'}}>{selectedLead.customer}</strong> {selectedLead.dealerSpecifications?.systemCapacityKw ? `(${selectedLead.dealerSpecifications.systemCapacityKw})` : ''}
+              </span>
+              <div style={{display: 'flex', gap: '0.5rem'}}>
+                <button 
+                  type="button" 
+                  onClick={() => setSelectedDownloadSections({s1: true, s2: true, s3: true, s4: true, s5: true})}
+                  style={{border: 'none', background: 'transparent', color: '#2563eb', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', padding: 0}}
+                >
+                  Select All
+                </button>
+                <span style={{color: '#cbd5e1'}}>|</span>
+                <button 
+                  type="button" 
+                  onClick={() => setSelectedDownloadSections({s1: false, s2: false, s3: false, s4: false, s5: false})}
+                  style={{border: 'none', background: 'transparent', color: '#64748b', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', padding: 0}}
+                >
+                  Clear All
+                </button>
+              </div>
+            </div>
+
+            {/* Checkboxes for 5 sections */}
+            <div style={{display: 'flex', flexDirection: 'column', gap: '0.65rem', marginBottom: '1.5rem'}}>
+              {/* Section 1 */}
+              <label 
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '10px',
+                  border: `1.5px solid ${selectedDownloadSections.s1 ? '#3b82f6' : '#e2e8f0'}`,
+                  background: selectedDownloadSections.s1 ? '#f0f7ff' : '#ffffff',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <input 
+                  type="checkbox" 
+                  checked={selectedDownloadSections.s1}
+                  onChange={e => setSelectedDownloadSections(prev => ({...prev, s1: e.target.checked}))}
+                  style={{width: '18px', height: '18px', accentColor: '#2563eb', cursor: 'pointer'}}
+                />
+                <div style={{flex: 1}}>
+                  <div style={{fontSize: '0.9rem', fontWeight: 700, color: '#1e293b'}}>
+                    📁 Section 1: Dealer KYC & Site Survey (1st Doc)
+                  </div>
+                  <div style={{fontSize: '0.75rem', color: '#64748b', marginTop: '2px'}}>
+                    Aadhaar, PAN, Bank Passbook, Current Bill, House Tax, Passport & Site Photos, Meter Photo
+                  </div>
+                </div>
+                <span style={{fontSize: '0.78rem', fontWeight: 700, color: '#2563eb', background: '#dbeafe', padding: '2px 8px', borderRadius: '12px'}}>
+                  {selectedLead.documents?.filter(d => SECTION_1_DEALER_KYC_DOCS.includes(d.documentType as any)).length || 0} files
+                </span>
+              </label>
+
+              {/* Section 2 */}
+              <label 
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '10px',
+                  border: `1.5px solid ${selectedDownloadSections.s2 ? '#3b82f6' : '#e2e8f0'}`,
+                  background: selectedDownloadSections.s2 ? '#f0f7ff' : '#ffffff',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <input 
+                  type="checkbox" 
+                  checked={selectedDownloadSections.s2}
+                  onChange={e => setSelectedDownloadSections(prev => ({...prev, s2: e.target.checked}))}
+                  style={{width: '18px', height: '18px', accentColor: '#2563eb', cursor: 'pointer'}}
+                />
+                <div style={{flex: 1}}>
+                  <div style={{fontSize: '0.9rem', fontWeight: 700, color: '#1e293b'}}>
+                    🏦 Section 2: Bank 1st Payment Processing (2nd Doc)
+                  </div>
+                  <div style={{fontSize: '0.75rem', color: '#64748b', marginTop: '2px'}}>
+                    E-Token, Bank Ack, Net Metering Ack, Feasibility Letter, Quotation, JanSamarth + Linked KYC
+                  </div>
+                </div>
+                <span style={{fontSize: '0.78rem', fontWeight: 700, color: '#2563eb', background: '#dbeafe', padding: '2px 8px', borderRadius: '12px'}}>
+                  {selectedLead.documents?.filter(d => SECTION_2_BANK_FIRST_PAYMENT_DOCS.includes(d.documentType as any) || SECTION_2_LINKED_KYC_DOCS.includes(d.documentType as any)).length || 0} files
+                </span>
+              </label>
+
+              {/* Section 3 */}
+              <label 
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '10px',
+                  border: `1.5px solid ${selectedDownloadSections.s3 ? '#3b82f6' : '#e2e8f0'}`,
+                  background: selectedDownloadSections.s3 ? '#f0f7ff' : '#ffffff',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <input 
+                  type="checkbox" 
+                  checked={selectedDownloadSections.s3}
+                  onChange={e => setSelectedDownloadSections(prev => ({...prev, s3: e.target.checked}))}
+                  style={{width: '18px', height: '18px', accentColor: '#2563eb', cursor: 'pointer'}}
+                />
+                <div style={{flex: 1}}>
+                  <div style={{fontSize: '0.9rem', fontWeight: 700, color: '#1e293b'}}>
+                    🔧 Section 3: Site Installation Photos (3rd Doc)
+                  </div>
+                  <div style={{fontSize: '0.75rem', color: '#64748b', marginTop: '2px'}}>
+                    Geo-Tagged Photo with Customer, Earthing Photo, Panel Barcodes (min 2+), Inverter Serial Photo
+                  </div>
+                </div>
+                <span style={{fontSize: '0.78rem', fontWeight: 700, color: '#2563eb', background: '#dbeafe', padding: '2px 8px', borderRadius: '12px'}}>
+                  {selectedLead.documents?.filter(d => SECTION_3_SITE_INSTALLATION_DOCS.includes(d.documentType as any)).length || 0} files
+                </span>
+              </label>
+
+              {/* Section 4 */}
+              <label 
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '10px',
+                  border: `1.5px solid ${selectedDownloadSections.s4 ? '#3b82f6' : '#e2e8f0'}`,
+                  background: selectedDownloadSections.s4 ? '#f0f7ff' : '#ffffff',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <input 
+                  type="checkbox" 
+                  checked={selectedDownloadSections.s4}
+                  onChange={e => setSelectedDownloadSections(prev => ({...prev, s4: e.target.checked}))}
+                  style={{width: '18px', height: '18px', accentColor: '#2563eb', cursor: 'pointer'}}
+                />
+                <div style={{flex: 1}}>
+                  <div style={{fontSize: '0.9rem', fontWeight: 700, color: '#1e293b'}}>
+                    💳 Section 4: Bank 2nd Payment & PCR (4th Doc)
+                  </div>
+                  <div style={{fontSize: '0.75rem', color: '#64748b', marginTop: '2px'}}>
+                    Auto-Linked Geo-Tagged Plant Photo, Plant Commissioning Report (PCR), Tax Invoice / Bill
+                  </div>
+                </div>
+                <span style={{fontSize: '0.78rem', fontWeight: 700, color: '#2563eb', background: '#dbeafe', padding: '2px 8px', borderRadius: '12px'}}>
+                  {selectedLead.documents?.filter(d => SECTION_4_BANK_SECOND_PAYMENT_DOCS.includes(d.documentType as any) || d.documentType === 'Geo-Tagged Photo with Customer in Plant').length || 0} files
+                </span>
+              </label>
+
+              {/* Section 5 */}
+              <label 
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '10px',
+                  border: `1.5px solid ${selectedDownloadSections.s5 ? '#3b82f6' : '#e2e8f0'}`,
+                  background: selectedDownloadSections.s5 ? '#f0f7ff' : '#ffffff',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <input 
+                  type="checkbox" 
+                  checked={selectedDownloadSections.s5}
+                  onChange={e => setSelectedDownloadSections(prev => ({...prev, s5: e.target.checked}))}
+                  style={{width: '18px', height: '18px', accentColor: '#2563eb', cursor: 'pointer'}}
+                />
+                <div style={{flex: 1}}>
+                  <div style={{fontSize: '0.9rem', fontWeight: 700, color: '#1e293b'}}>
+                    ⚡ Section 5: Grid Office & Meter Setup (5th Doc)
+                  </div>
+                  <div style={{fontSize: '0.75rem', color: '#64748b', marginTop: '2px'}}>
+                    Annexure A & C, Synchronisation / Commissioning, PCR, S-Number Photo, DCR Certs, Linked Geo Photo & Current Bill
+                  </div>
+                </div>
+                <span style={{fontSize: '0.78rem', fontWeight: 700, color: '#2563eb', background: '#dbeafe', padding: '2px 8px', borderRadius: '12px'}}>
+                  {selectedLead.documents?.filter(d => SECTION_5_GRID_OFFICE_DOCS.includes(d.documentType as any) || ['PROJECT COMPLETION REPORT', 'Geo-Tagged Photo with Customer in Plant', 'Current Bill'].includes(d.documentType)).length || 0} files
+                </span>
+              </label>
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div className="modal-actions" style={{marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem'}}>
+              <button 
+                type="button" 
+                className="btn-outline" 
+                onClick={() => setShowDownloadSectionModal(false)}
+                style={{padding: '0.55rem 1.25rem', fontSize: '0.9rem'}}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                className="btn-primary" 
+                onClick={handleDownloadSelectedSections}
+                disabled={!selectedDownloadSections.s1 && !selectedDownloadSections.s2 && !selectedDownloadSections.s3 && !selectedDownloadSections.s4 && !selectedDownloadSections.s5}
+                style={{
+                  padding: '0.55rem 1.4rem', 
+                  fontSize: '0.9rem', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.5rem',
+                  opacity: (!selectedDownloadSections.s1 && !selectedDownloadSections.s2 && !selectedDownloadSections.s3 && !selectedDownloadSections.s4 && !selectedDownloadSections.s5) ? 0.5 : 1
+                }}
+              >
+                <Download size={16} /> Download Selected Sections
+              </button>
             </div>
           </div>
         </div>

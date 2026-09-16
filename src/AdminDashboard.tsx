@@ -67,6 +67,7 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
   // Lead State
   const { leads, employees, dealers, currentUser, activities, tasks, updateLeadStage, updateLead, addActivity } = useCRM();
   const { showToast, showConfirmModal } = useUI();
+  const { deductDealerStockForLeadMaterial } = useStock();
   const [selectedStage, setSelectedStage] = useState<Stage>('Installation');
   const [selectedLead, setSelectedLead] = useState<MockLead | null>(null);
 
@@ -89,7 +90,25 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
   const [rejectTargetLead, setRejectTargetLead] = useState<MockLead | null>(null);
   const [rejectReason, setRejectReason] = useState('');
 
-  const handleApproveInstallation = (lead: MockLead) => {
+  const handleApproveInstallation = async (lead: MockLead) => {
+    if (lead.dealerSpecifications && lead.dealer) {
+      const deductionRes = await deductDealerStockForLeadMaterial(
+        lead.id,
+        lead.customer,
+        lead.dealer,
+        lead.dealerSpecifications,
+        currentUser?.name || 'Admin'
+      );
+      if (deductionRes.deductedSummary && deductionRes.deductedSummary !== 'No material quantities specified') {
+        addActivity({
+          type: 'Stock Consumed',
+          message: `Material stock deducted for ${lead.customer} from ${lead.dealer} inventory: ${deductionRes.deductedSummary}`,
+          user: currentUser?.name || 'Admin',
+          dealer: lead.dealer,
+          leadId: lead.id
+        });
+      }
+    }
     updateLead(lead.id, { stage: 'Installation', installationApprovalStatus: 'Approved' });
     addActivity({
       type: 'Installation Approved',
@@ -98,7 +117,7 @@ export default function AdminDashboard({ onSignOut }: AdminDashboardProps) {
       leadId: lead.id,
       dealer: lead.dealer
     });
-    showToast(`Installation approved for ${lead.customer}`, 'success');
+    showToast(`Installation approved & materials deducted from ${lead.dealer}'s inventory!`, 'success');
   };
 
   const handleRejectInstallation = () => {

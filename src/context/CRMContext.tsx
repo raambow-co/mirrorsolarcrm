@@ -6,28 +6,59 @@ import { collection, onSnapshot, doc, setDoc, updateDoc, addDoc, deleteDoc, quer
 export type Stage = 'Lead' | 'Converted' | 'Loan' | 'Material' | 'Installation' | 'Completed';
 export const STAGES: Stage[] = ['Lead', 'Converted', 'Loan', 'Material', 'Installation', 'Completed'];
 
-export const DEALER_KYC_DOCS = [
+// --- 5 PROJECT DOCUMENT CATEGORIES & SPECIFICATIONS ---
+
+// 1. First Doc: Dealer KYC & Site Survey
+export const SECTION_1_DEALER_KYC_DOCS = [
   'Aadhaar Card',
   'PAN Card',
-  'House Tax',
+  'Bank Passbook or Cancelled Cheque',
   'Current Bill',
-  'First Payment Proof',
-  'Bank Loan Payment Proof',
-  'Other'
+  'House Tax',
+  'Passport Size Photo of Customer',
+  'Site Photo',
+  'Building Photo',
+  'Signature Photo',
+  'Meter Photo'
 ];
 
-export const EMPLOYEE_PROCESSING_DOCS = [
+// 2. Second Doc: Bank First Payment Docs
+export const SECTION_2_BANK_FIRST_PAYMENT_DOCS = [
   'E-Token',
   'Application Acknowledgement',
   'Net Metering Agreement',
   'Site Feasibility Report',
   'Quotation Document',
   'Feasibility Letter',
-  'Advance Payment Receipt'
+  'Advance Payment Receipt',
+  'Digital Letter - JanSamarth Doc'
 ];
 
-export const INSTALLATION_COMPLETION_DOCS = [
-  'Installation Site Photos',
+// Auto-linked in Section 2 from Section 1:
+export const SECTION_2_LINKED_KYC_DOCS = [
+  'Aadhaar Card',
+  'PAN Card',
+  'Current Bill',
+  'House Tax',
+  'Bank Passbook or Cancelled Cheque'
+];
+
+// 3. Third Doc: Site Installation Photos
+export const SECTION_3_SITE_INSTALLATION_DOCS = [
+  'Geo-Tagged Photo with Customer in Plant',
+  'Earthing Image',
+  'Panels Serial Numbers Images',
+  'Inverter Serial Number'
+];
+
+// 4. Fourth Doc: Bank Second Payment Docs
+export const SECTION_4_BANK_SECOND_PAYMENT_DOCS = [
+  'PROJECT COMPLETION REPORT',
+  'Tax Invoice Bill'
+];
+
+// 5. Fifth Doc: Grid or Current Office (DISCOM) Docs
+export const SECTION_5_GRID_OFFICE_DOCS = [
   'Annexure - A',
   'Annexure - C',
   'SYNCHRONISATION',
@@ -36,11 +67,79 @@ export const INSTALLATION_COMPLETION_DOCS = [
   'DCR Certificate Documents'
 ];
 
-export const ALL_DOCUMENT_TYPES = [
-  ...DEALER_KYC_DOCS,
-  ...EMPLOYEE_PROCESSING_DOCS,
-  ...INSTALLATION_COMPLETION_DOCS
+// Combined unique list of all project document types
+export const ALL_DOCUMENT_TYPES = Array.from(new Set([
+  ...SECTION_1_DEALER_KYC_DOCS,
+  ...SECTION_2_BANK_FIRST_PAYMENT_DOCS,
+  ...SECTION_3_SITE_INSTALLATION_DOCS,
+  ...SECTION_4_BANK_SECOND_PAYMENT_DOCS,
+  ...SECTION_5_GRID_OFFICE_DOCS
+]));
+
+// Backward-compatibility aliases
+export const DEALER_KYC_DOCS = SECTION_1_DEALER_KYC_DOCS;
+export const EMPLOYEE_PROCESSING_DOCS = SECTION_2_BANK_FIRST_PAYMENT_DOCS;
+export const INSTALLATION_COMPLETION_DOCS = [
+  ...SECTION_3_SITE_INSTALLATION_DOCS,
+  ...SECTION_4_BANK_SECOND_PAYMENT_DOCS,
+  ...SECTION_5_GRID_OFFICE_DOCS
 ];
+
+export interface DocRequirementConfig {
+  maxImages: number;
+  minImages?: number;
+  notice?: string;
+  allowMultiple?: boolean;
+}
+
+export const DOC_REQUIREMENTS: Record<string, DocRequirementConfig> = {
+  'Aadhaar Card': { maxImages: 2, notice: '1 or 2 images (Front & Back). Must be clear.' },
+  'PAN Card': { maxImages: 1, notice: '1 clear image' },
+  'Bank Passbook or Cancelled Cheque': { maxImages: 2, notice: '1 or 2 images. We need clear images with legible account number & IFSC code.' },
+  'Current Bill': { maxImages: 2, notice: '1 or 2 images (Latest electricity bill)' },
+  'House Tax': { maxImages: 1, notice: '1 image (Latest tax receipt)' },
+  'Passport Size Photo of Customer': { maxImages: 1, notice: '1 passport photo of customer' },
+  'Site Photo': { maxImages: 1, notice: '1 rooftop/site photo' },
+  'Building Photo': { maxImages: 1, notice: '1 full building exterior photo' },
+  'Signature Photo': { maxImages: 1, notice: '1 customer signature photo' },
+  'Meter Photo': { maxImages: 2, notice: '1 or 2 images of existing meter & reading' },
+  'Geo-Tagged Photo with Customer in Plant': { maxImages: 1, notice: '1 geo-tagged photo with customer at installed solar plant' },
+  'Earthing Image': { maxImages: 1, notice: '1 earthing setup photo' },
+  'Panels Serial Numbers Images': { maxImages: 999, minImages: 2, allowMultiple: true, notice: 'Min 2 to multiple images. All panel barcodes/serial numbers must be clearly readable.' },
+  'Inverter Serial Number': { maxImages: 1, notice: '1 clear photo of inverter serial number & rating plate' },
+  'PROJECT COMPLETION REPORT': { maxImages: 1, notice: '1 Project Completion Report (PCR)' },
+  'Tax Invoice Bill': { maxImages: 1, notice: '1 Tax invoice bill copy' },
+  'Annexure - A': { maxImages: 1, notice: 'Annexure - A form copy' },
+  'Annexure - C': { maxImages: 1, notice: 'Annexure - C form copy' },
+  'SYNCHRONISATION': { maxImages: 1, notice: 'Synchronisation report' },
+  'S Number Photo': { maxImages: 1, notice: '1 clear S-Number photo' },
+  'DCR Certificate Documents': { maxImages: 2, notice: 'DCR certificate documents' },
+};
+
+export interface DealerProjectSpecifications {
+  email?: string;
+  phone?: string;
+  fullName?: string;
+  panelWp?: string; // e.g., '540 Wp', '610 Wp', '550 Wp'
+  phase?: '1 Phase' | '3 Phase';
+  systemCapacityKw?: string; // e.g., '3 kW', '5 kW'
+  buildingFloors?: string; // e.g., '1 Floor', '2 Floors'
+  structureHeightAndType?: string; // e.g., 'Company Structure', 'Custom Welding Structure'
+  lightningArresterStand?: 'Yes' | 'No';
+  pipes10FeetCount?: string;
+  longLBendsCount?: string;
+  shortLBendsCount?: string;
+  tBendsCount?: string;
+  straightJointConnectorsCount?: string;
+  dcRedWireLength?: string;
+  dcBlackWireLength?: string;
+  acRedWireLength?: string;
+  acBlackWireLength?: string;
+  greenWireLength?: string;
+  bankIfscCode?: string;
+  emailProofUrl?: string;
+  emailProofFileName?: string;
+}
 
 export type LeadPriority = 'High' | 'Medium' | 'Low';
 export type FollowUpStatus = 'Due Today' | 'Overdue' | 'Upcoming' | 'No Follow-up' | 'Completed';
@@ -86,6 +185,31 @@ export type InstallationApprovalStatus = 'None' | 'Pending' | 'Approved' | 'Reje
 export type PaymentMilestoneType = 'Pre-Installation' | 'Post-Installation';
 export type PaymentMilestoneStatus = 'Pending Settlement' | 'Settled' | 'Received';
 
+export type CustomerPaymentType = 'Booking / Advance' | 'First Milestone' | 'Bank Loan Disbursal' | 'Final Payment' | 'Subsidy Received' | 'Other';
+export type CustomerPaymentMode = 'UPI' | 'Bank Transfer / NEFT' | 'Net Banking' | 'Cheque' | 'Cash' | 'Bank Loan' | 'Credit / Debit Card' | 'Other';
+export type CustomerPaymentStatus = 'Pending Verification' | 'Verified' | 'Rejected';
+
+export interface CustomerPaymentRecord {
+  id: string;
+  leadId: string;
+  customerName: string;
+  amount: number;
+  paymentType: CustomerPaymentType;
+  paymentMode: CustomerPaymentMode;
+  status: CustomerPaymentStatus;
+  paidAt: string;
+  recordedBy: string;
+  recordedByRole: string;
+  proofUrl?: string;
+  proofFileName?: string;
+  proofFileSize?: number;
+  referenceNumber?: string; // UTR / Transaction ID / Cheque #
+  notes?: string;
+  verifiedAt?: string;
+  verifiedBy?: string;
+  rejectionReason?: string;
+}
+
 export interface PaymentMilestone {
   id: string;
   type: PaymentMilestoneType;
@@ -104,9 +228,14 @@ export interface PaymentMilestone {
 }
 
 export interface LeadPayments {
+  // Admin to Dealer Payouts
   preInstallation?: PaymentMilestone;
   postInstallation?: PaymentMilestone;
   totalAgreedAmount?: number;
+  
+  // Customer to Admin Payments
+  customerPayments?: CustomerPaymentRecord[];
+  totalProjectCost?: number;
 }
 
 export interface MockLead {
@@ -132,6 +261,7 @@ export interface MockLead {
   installationApprovalStatus?: InstallationApprovalStatus;
   installationRejectionReason?: string;
   payments?: LeadPayments;
+  dealerSpecifications?: DealerProjectSpecifications;
 }
 
 export type PermissionLevel = 'full' | 'edit' | 'view' | 'none';
@@ -275,6 +405,30 @@ interface CRMContextType {
     leadId: string, 
     milestoneType: PaymentMilestoneType, 
     data?: { dealerNotes?: string }
+  ) => Promise<void>;
+  addCustomerPayment: (
+    leadId: string,
+    data: {
+      amount: number;
+      paymentType: CustomerPaymentType;
+      paymentMode: CustomerPaymentMode;
+      paidAt?: string;
+      proofUrl?: string;
+      proofFileName?: string;
+      proofFileSize?: number;
+      referenceNumber?: string;
+      notes?: string;
+    }
+  ) => Promise<void>;
+  verifyCustomerPayment: (
+    leadId: string,
+    paymentId: string,
+    status: 'Verified' | 'Rejected',
+    reason?: string
+  ) => Promise<void>;
+  deleteCustomerPayment: (
+    leadId: string,
+    paymentId: string
   ) => Promise<void>;
   tasks: Task[];
   addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => void;
@@ -647,6 +801,152 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const addCustomerPayment = async (
+    leadId: string,
+    data: {
+      amount: number;
+      paymentType: CustomerPaymentType;
+      paymentMode: CustomerPaymentMode;
+      paidAt?: string;
+      proofUrl?: string;
+      proofFileName?: string;
+      proofFileSize?: number;
+      referenceNumber?: string;
+      notes?: string;
+    }
+  ) => {
+    try {
+      const lead = leads.find(l => l.id === leadId);
+      if (!lead) return;
+
+      const currentPayments = lead.payments || {};
+      const existingList = currentPayments.customerPayments || [];
+
+      const newRecord: CustomerPaymentRecord = {
+        id: `CP_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        leadId: lead.id,
+        customerName: lead.customer,
+        amount: data.amount,
+        paymentType: data.paymentType,
+        paymentMode: data.paymentMode,
+        status: currentUser?.role === 'Admin' ? 'Verified' : 'Pending Verification',
+        paidAt: data.paidAt || new Date().toISOString(),
+        recordedBy: currentUser?.name || 'Staff',
+        recordedByRole: currentUser?.role || 'Admin',
+        proofUrl: data.proofUrl || '',
+        proofFileName: data.proofFileName || '',
+        proofFileSize: data.proofFileSize || 0,
+        referenceNumber: data.referenceNumber || '',
+        notes: data.notes || '',
+        verifiedAt: currentUser?.role === 'Admin' ? new Date().toISOString() : undefined,
+        verifiedBy: currentUser?.role === 'Admin' ? currentUser.name : undefined,
+      };
+
+      const updatedCustomerPayments = [newRecord, ...existingList];
+      const updatedPayments: LeadPayments = {
+        ...currentPayments,
+        customerPayments: updatedCustomerPayments
+      };
+
+      await updateDoc(doc(db, 'leads', leadId), {
+        payments: updatedPayments,
+        updatedAt: new Date().toISOString()
+      });
+
+      await addActivity({
+        type: 'Customer Payment Recorded',
+        message: `${currentUser?.name || 'Staff'} recorded Customer payment of ₹${data.amount.toLocaleString('en-IN')} (${data.paymentType} via ${data.paymentMode}) for ${lead.customer}`,
+        user: currentUser?.name || 'Staff',
+        leadId: lead.id,
+        dealer: lead.dealer
+      });
+    } catch (err) {
+      console.error("Error adding customer payment:", err);
+      throw err;
+    }
+  };
+
+  const verifyCustomerPayment = async (
+    leadId: string,
+    paymentId: string,
+    status: 'Verified' | 'Rejected',
+    reason?: string
+  ) => {
+    try {
+      const lead = leads.find(l => l.id === leadId);
+      if (!lead) return;
+
+      const currentPayments = lead.payments || {};
+      const existingList = currentPayments.customerPayments || [];
+
+      const updatedList = existingList.map(item => {
+        if (item.id === paymentId) {
+          return {
+            ...item,
+            status,
+            verifiedAt: new Date().toISOString(),
+            verifiedBy: currentUser?.name || 'Admin',
+            rejectionReason: reason || item.rejectionReason
+          };
+        }
+        return item;
+      });
+
+      const updatedPayments: LeadPayments = {
+        ...currentPayments,
+        customerPayments: updatedList
+      };
+
+      await updateDoc(doc(db, 'leads', leadId), {
+        payments: updatedPayments,
+        updatedAt: new Date().toISOString()
+      });
+
+      await addActivity({
+        type: status === 'Verified' ? 'Customer Payment Verified' : 'Customer Payment Rejected',
+        message: `Admin ${status.toLowerCase()} customer payment for ${lead.customer}${reason ? ` (Reason: ${reason})` : ''}`,
+        user: currentUser?.name || 'Admin',
+        leadId: lead.id,
+        dealer: lead.dealer
+      });
+    } catch (err) {
+      console.error("Error verifying customer payment:", err);
+      throw err;
+    }
+  };
+
+  const deleteCustomerPayment = async (leadId: string, paymentId: string) => {
+    try {
+      const lead = leads.find(l => l.id === leadId);
+      if (!lead) return;
+
+      const currentPayments = lead.payments || {};
+      const existingList = currentPayments.customerPayments || [];
+      const updatedList = existingList.filter(item => item.id !== paymentId);
+
+      const updatedPayments: LeadPayments = {
+        ...currentPayments,
+        customerPayments: updatedList
+      };
+
+      await updateDoc(doc(db, 'leads', leadId), {
+        payments: updatedPayments,
+        updatedAt: new Date().toISOString()
+      });
+
+      await addActivity({
+        type: 'Customer Payment Deleted',
+        message: `${currentUser?.name || 'Admin'} deleted customer payment record for ${lead.customer}`,
+        user: currentUser?.name || 'Admin',
+        leadId: lead.id,
+        dealer: lead.dealer
+      });
+    } catch (err) {
+      console.error("Error deleting customer payment:", err);
+      throw err;
+    }
+  };
+
   return (
     <CRMContext.Provider value={{ 
       leads, employees, dealers, users, activities, currentUser, setCurrentUser,
@@ -655,6 +955,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addLead, updateLead, updateLeadStage,
       updateUserPermissions, updateUserRole, updateUserStatus,
       addActivity, settleLeadPayment, acknowledgeLeadPayment,
+      addCustomerPayment, verifyCustomerPayment, deleteCustomerPayment,
       tasks, addTask, updateTask, deleteTask, resetData
     }}>
       {children}

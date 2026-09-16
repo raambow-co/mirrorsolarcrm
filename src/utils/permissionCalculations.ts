@@ -5,12 +5,11 @@ import type { User, UserPermissions } from '../context/CRMContext';
  */
 export const hasPermission = (user: User | null, module: keyof UserPermissions): boolean => {
   if (!user) return false;
+  if (user.role === 'Admin') return true;
   if (!user.permissions) {
-    console.error("hasPermission FAILED: user.permissions is undefined!", user);
     return false;
   }
   const level = user.permissions[module];
-  console.log(`Checking permission for ${module}:`, level);
   return level !== 'none' && level !== undefined;
 };
 
@@ -19,6 +18,8 @@ export const hasPermission = (user: User | null, module: keyof UserPermissions):
  */
 export const canManageModule = (user: User | null, module: keyof UserPermissions): boolean => {
   if (!user) return false;
+  if (user.role === 'Admin') return true;
+  if (!user.permissions) return false;
   const level = user.permissions[module];
   return level === 'full' || level === 'edit';
 };

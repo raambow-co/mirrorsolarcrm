@@ -5,12 +5,11 @@ import { canAccessRoute } from '../utils/permissionCalculations';
 import AccessRestricted from '../components/AccessRestricted';
 import DealerSidebar from './DealerSidebar';
 
-// Stubs for future pages
 import DealerDashboard from './DealerDashboard';
+import DealerStockPage from './DealerStockPage';
 import ProfilePage from '../ProfilePage';
 import LeadsPage from '../LeadsPage';
 import FollowupsPage from '../FollowupsPage';
-import StockPage from '../StockPage';
 import AdminReportsPage from '../AdminReportsPage';
 import TasksPage from '../TasksPage';
 import CalendarPage from '../CalendarPage';
@@ -86,7 +85,7 @@ export default function DealerApp({ onSignOut }: DealerAppProps) {
       case '/dealer/calendar':
         return <CalendarPage onNavigate={handleNavigate} />;
       case '/dealer/stock':
-        return <StockPage />;
+        return <DealerStockPage />;
       case '/dealer/profile':
         return <ProfilePage />;
       case '/dealer/reports':

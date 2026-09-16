@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { 
   Users, Target, TrendingUp, AlertCircle, PhoneCall, 
   Plus, Box, Package, Activity as ActivityIcon, ShoppingCart, 
-  UsersRound, Briefcase, CheckSquare, Calendar, CreditCard
+  UsersRound, Briefcase, CheckSquare, Calendar, CreditCard, Truck
 } from 'lucide-react';
 import { useCRM, STAGES } from '../context/CRMContext';
 import { useStock } from '../context/StockContext';
@@ -20,10 +20,11 @@ interface DealerDashboardProps {
 
 export default function DealerDashboard({ onNavigate }: DealerDashboardProps) {
   const { currentUser, leads, employees, activities, tasks } = useCRM();
-  const { stockItems, stockRequests } = useStock();
+  const { stockItems, stockRequests, getDealerPendingDispatchesCount } = useStock();
 
   // Fallback to avoid crashes if somehow not logged in
   const dealerName = currentUser?.name || 'Dealer';
+  const pendingDispatchesCount = getDealerPendingDispatchesCount(dealerName);
 
   // Derived Data
   const performance = useMemo(() => getDealerPerformance(dealerName, leads), [dealerName, leads]);
@@ -79,6 +80,42 @@ export default function DealerDashboard({ onNavigate }: DealerDashboardProps) {
           <p>Here's an overview of your business today.</p>
         </div>
       </div>
+
+      {/* ⚠️ PENDING DISPATCH NOTIFICATION */}
+      {pendingDispatchesCount > 0 && (
+        <div style={{
+          background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
+          border: '1.5px solid #fde68a',
+          borderRadius: '12px',
+          padding: '1.25rem 1.5rem',
+          marginBottom: '1.5rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          boxShadow: '0 4px 12px rgba(217, 119, 6, 0.08)'
+        }}>
+          <div style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
+            <div style={{width: '44px', height: '44px', borderRadius: '10px', background: '#d97706', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff'}}>
+              <Truck size={24} />
+            </div>
+            <div>
+              <div style={{fontSize: '1rem', fontWeight: 800, color: '#92400e'}}>
+                {pendingDispatchesCount} Incoming Stock Dispatch{pendingDispatchesCount > 1 ? 'es' : ''} from Admin
+              </div>
+              <div style={{fontSize: '0.85rem', color: '#b45309', marginTop: '2px'}}>
+                Admin has dispatched solar materials. Please inspect and confirm receipt to add them to your active stock.
+              </div>
+            </div>
+          </div>
+          <button 
+            className="lp-btn-primary" 
+            onClick={() => onNavigate('/dealer/stock')}
+            style={{background: '#d97706', borderColor: '#d97706', color: '#ffffff', fontWeight: 700, padding: '0.6rem 1.25rem', whiteSpace: 'nowrap'}}
+          >
+            Review & Accept Stock →
+          </button>
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="dlr-grid-4">
